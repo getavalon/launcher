@@ -21,7 +21,7 @@ Item {
     width: text.width
     height: text.height
 
-    FontLoader { id: fontAwesome; source: Qt.resolvedUrl("../res/font/fontawesome/FontAwesome.otf") }
+    FontLoader { id: fontAwesome; source: Qt.resolvedUrl("../font/fontawesome/FontAwesome.otf") }
 
     Text {
         id: text

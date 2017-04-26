@@ -9,7 +9,7 @@ import subprocess
 from PyQt5 import QtCore, QtQml
 
 from . import lib, io
-from .vendor import six
+from .vendor import six, yaml
 
 Signal = QtCore.pyqtSignal
 Slot = QtCore.pyqtSlot
@@ -25,8 +25,8 @@ module._icons = {
     "defaultApp": lib.resource("icon", "app.png"),
 }
 
-task_path = "{root}/{project}/{silo}/{asset}/work/{task}/{user}/{app}"
-task_path = task_path.replace("/", os.sep)
+# task_path = "{root}/{project}/{silo}/{asset}/work/{task}/{user}/{app}"
+# task_path = task_path.replace("/", os.sep)
 
 
 class Controller(QtCore.QObject):
@@ -39,11 +39,10 @@ class Controller(QtCore.QObject):
     navigated = Signal()
     threaded_message = Signal()
 
-    def __init__(self, root, config, parent=None):
+    def __init__(self, root, parent=None):
         super(Controller, self).__init__(parent)
 
         self._root = root
-        self._config = config
         self._breadcrumbs = list()
         self._processes = list()
 
@@ -71,21 +70,22 @@ class Controller(QtCore.QObject):
             app = json.load(f)
 
         frame = self.frame.copy()
+        template_task = frame["config"]["template"]["task"]
 
         try:
-            workdir = task_path.format(
-                root=self._root,
-                project=frame["MINDBENDER_PROJECT"],
-                silo=frame["MINDBENDER_SILO"],
-                asset=frame["MINDBENDER_ASSET"],
-                task=frame["MINDBENDER_TASK"],
+            workdir = template_task.format(
+                projectpath=frame["env"]["MINDBENDER_PROJECTPATH"],
+                silo=frame["env"]["MINDBENDER_SILO"],
+                asset=frame["env"]["MINDBENDER_ASSET"],
+                task=frame["env"]["MINDBENDER_TASK"],
                 user=getpass.getuser(),
                 app=app["application_dir"],
-            )
+            ).replace("/", os.sep)
+
         except KeyError as e:
             return io.log("Missing environment variable: %s" % e)
 
-        frame["MINDBENDER_WORKDIR"] = workdir
+        frame["env"]["MINDBENDER_WORKDIR"] = workdir
 
         try:
             os.makedirs(workdir)
@@ -101,7 +101,7 @@ class Controller(QtCore.QObject):
                 io.log("Could not create working directory.")
                 return io.log(traceback.format_exc())
 
-        environment = dict(os.environ, **frame)
+        environment = dict(os.environ, **frame["env"])
 
         try:
             app = lib.dict_format(app, **environment)
@@ -122,6 +122,12 @@ class Controller(QtCore.QObject):
             else:
                 io.log("Unsupported environment variable in %s"
                        % application_json)
+
+        # Asset environment variables
+        silo = frame["env"]["MINDBENDER_SILO"]
+        asset = frame["env"]["MINDBENDER_ASSET"]
+        for key, value in (frame["inventory"][silo][asset] or {}).items():
+            environment["MINDBENDER_" + key.upper()] = str(value)
 
         args = item.get("args", []) + app.get("arguments", [])
 
@@ -187,8 +193,8 @@ class Controller(QtCore.QObject):
     @Property("QVariant", notify=navigated)
     def environment(self):
         try:
-            frame = self._frames[-1]
-        except IndexError:
+            frame = self._frames[-1]["env"]
+        except (IndexError, KeyError):
             return list()
         else:
             return [
@@ -206,7 +212,6 @@ class Controller(QtCore.QObject):
         ]
 
         frame = dict()
-
         self._frames[:] = [frame]
 
         self.pushed.emit(header, model)
@@ -245,69 +250,76 @@ class Controller(QtCore.QObject):
 
     def on_project_changed(self, item):
         path = os.path.join(self._root, item["label"])
+        configpath = os.path.join(path, ".config.yml")
+        inventorypath = os.path.join(path, ".inventory.yml")
 
-        # try:
-        #     address = next(
-        #         fname for fname in os.listdir(path)
-        #         if fname.startswith("..")
-        #     ).strip("..")
+        try:
+            with open(configpath) as f:
+                config = yaml.load(f)
+                config.pop("schema")
+        except IOError:
+            config = dict()
 
-        # except StopIteration:
-        #     pass
+        try:
+            with open(inventorypath) as f:
+                inventory = yaml.load(f)
+                inventory.pop("schema")
+        except IOError:
+            inventory = dict()
 
-        # else:
-        #     metadata = io.get(address)
-        #     print(metadata)
-
-        io
+        frame = self.frame.copy()
+        frame["config"] = config
+        frame["inventory"] = inventory
 
         model = [
             {
                 "path": path,
-                "label": dirname,
+                "label": key,
                 "icon": module._icons["defaultSilo"]
             }
-            for dirname in walk(path)
+            for key in inventory
         ]
 
-        frame = self.frame.copy()
-        frame["MINDBENDER_PROJECT"] = item["label"]
-        frame["MINDBENDER_PROJECTPATH"] = path
+        frame["env"] = dict()
+        frame["env"]["MINDBENDER_PROJECT"] = item["label"]
+        frame["env"]["MINDBENDER_PROJECTPATH"] = path
 
         self._frames.append(frame)
         self.pushed.emit(item, model)
 
     def on_silo_changed(self, item):
         path = os.path.join(item["path"], item["label"])
+        frame = self.frame.copy()
+
         model = [
             {
                 "path": path,
-                "label": dirname,
+                "label": key,
                 "icon": module._icons["defaultAsset"]
             }
-            for dirname in walk(path)
+            for key in frame["inventory"][item["label"]]
         ]
 
-        frame = self.frame.copy()
-        frame["MINDBENDER_SILO"] = item["label"]
+        frame["env"]["MINDBENDER_SILO"] = item["label"]
 
         self._frames.append(frame)
         self.pushed.emit(item["label"], model)
 
     def on_asset_changed(self, item):
         path = os.path.join(item["path"], item["label"])
+        frame = self.frame.copy()
+
         model = [
             dict({
                 "path": path,
                 "label": task["name"],
                 "icon": module._icons["defaultTask"]
             }, **task)
-            for task in self._config.get("tasks", [])
+            for task in frame["config"].get("tasks", [])
         ]
 
-        frame = self.frame.copy()
-        frame["MINDBENDER_ASSET"] = item["label"]
-        frame["MINDBENDER_ASSETPATH"] = path
+        frame["env"]["MINDBENDER_ASSET"] = item["label"]
+        frame["env"]["MINDBENDER_ASSETPATH"] = path
 
         self._frames.append(frame)
         self.pushed.emit(item["label"], model)
@@ -315,17 +327,17 @@ class Controller(QtCore.QObject):
     def on_task_changed(self, item):
         path = os.path.join(item["path"], item["label"])
 
+        frame = self.frame.copy()
         model = [
             dict({
                 "label": app["name"],
                 "icon": module._icons["defaultApp"]
             }, **app)
-            for app in self._config.get("apps", [])
+            for app in frame["config"].get("apps", [])
         ]
 
-        frame = self.frame.copy()
-        frame["MINDBENDER_TASKPATH"] = os.path.join(path, "work")
-        frame["MINDBENDER_TASK"] = item["label"]
+        frame["env"]["MINDBENDER_TASKPATH"] = os.path.join(path, "work")
+        frame["env"]["MINDBENDER_TASK"] = item["label"]
 
         self._frames.append(frame)
         self.pushed.emit(item["label"], model)

@@ -25,7 +25,7 @@ Page {
                 Layout.alignment: Qt.AlignLeft
 
                 Image {
-                    source: "../res/%1".arg(modelData.icon)
+                    source: Qt.resolvedUrl("/%1".arg(modelData.icon))
                     fillMode: Image.PreserveAspectFit
                     Layout.fillHeight: true
                     Layout.margins: 2

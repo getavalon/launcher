@@ -11,8 +11,8 @@ except NameError:
 
 
 def resource(*path):
-    path = os.path.join("..", "res", *path)
-    return os.path.normpath(path)
+    path = os.path.join(self._path, "res", *path)
+    return path.replace("\\", "/")
 
 
 def which(program):
