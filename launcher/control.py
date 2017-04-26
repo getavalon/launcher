@@ -25,9 +25,6 @@ module._icons = {
     "defaultApp": lib.resource("icon", "app.png"),
 }
 
-# task_path = "{root}/{project}/{silo}/{asset}/work/{task}/{user}/{app}"
-# task_path = task_path.replace("/", os.sep)
-
 
 class Controller(QtCore.QObject):
     pushed = Signal("QVariant",
