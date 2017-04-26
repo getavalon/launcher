@@ -1,5 +1,4 @@
 import sys
-import firebase
 
 from PyQt5 import QtCore
 
@@ -39,7 +38,6 @@ class Model(QtCore.QAbstractListModel):
 
 
 def init():
-    self.db = firebase.FirebaseApplication(self.url)
     self.terminal = Model()
 
 
