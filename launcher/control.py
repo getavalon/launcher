@@ -5,19 +5,17 @@ import errno
 import shutil
 import getpass
 import traceback
-import subprocess
 
 from PyQt5 import QtCore, QtQml
 
 from . import lib, io
-from .vendor import six, yaml
+from .vendor import yaml
 
 Signal = QtCore.pyqtSignal
 Slot = QtCore.pyqtSlot
 Property = QtCore.pyqtProperty
 
 module = sys.modules[__name__]
-module._current_task = None
 module._icons = {
     "defaultProject": lib.resource("icon", "project.png"),
     "defaultSilo": lib.resource("icon", "silo.png"),
@@ -55,7 +53,7 @@ class Controller(QtCore.QObject):
         """Launch `app`
 
         Arguments:
-            app (dict): Application from configuration
+            item (dict): Object from GUI
 
         """
 
@@ -65,7 +63,7 @@ class Controller(QtCore.QObject):
             return io.log("%s not found." % item["label"], io.ERROR)
 
         with open(application_json) as f:
-            app = json.load(f)
+            app = yaml.load(f)
 
         executable = lib.which(app["executable"])
 
@@ -74,17 +72,14 @@ class Controller(QtCore.QObject):
 
         frame = self.frame.copy()
 
-        template_private = frame["config"]["template"]["private"]
+        template_private = frame["config"]["template"]["work"]
 
         try:
-            workdir = template_private.format(
-                projectpath=frame["environment"]["projectpath"],
-                silo=frame["environment"]["silo"],
-                asset=frame["environment"]["asset"],
-                task=frame["environment"]["task"],
+            workdir = template_private.format(**dict(
                 user=getpass.getuser(),
                 app=app["application_dir"],
-            )
+                **frame["environment"]
+            ))
 
         except KeyError as e:
             return io.log("Missing environment variable: %s" % e, io.ERROR)
@@ -165,10 +160,10 @@ class Controller(QtCore.QObject):
         args = item.get("args", []) + app.get("arguments", [])
 
         try:
-            popen = launch(
+            popen = lib.launch(
                 executable=executable,
                 args=args,
-                environment=environment
+                environment=environment,
             )
         except ValueError:
             return io.log(traceback.format_exc())
@@ -181,6 +176,7 @@ class Controller(QtCore.QObject):
             return io.log(traceback.format_exc())
 
         else:
+            io.log(json.dumps(environment, indent=4, sort_keys=True), io.DEBUG)
             io.log("Launching {executable} {args}".format(
                 executable=executable,
                 args=" ".join(args))
@@ -192,7 +188,7 @@ class Controller(QtCore.QObject):
             messaged = Signal(str)
 
             def run(self):
-                for line in stream(process["popen"].stdout):
+                for line in lib.stream(process["popen"].stdout):
                     self.messaged.emit(line.rstrip())
                 self.messaged.emit("%s killed." % process["app"]["executable"])
 
@@ -240,7 +236,7 @@ class Controller(QtCore.QObject):
             {
                 "label": project,
                 "icon": module._icons["defaultProject"]
-            } for project in walk(self._root)
+            } for project in dirs(self._root)
         ]
 
         frame = dict()
@@ -376,50 +372,7 @@ class Controller(QtCore.QObject):
         self.breadcrumbs.pop()
 
 
-def _byteify(data):
-    """Convert unicode to bytes"""
-
-    # Unicode
-    if isinstance(data, six.text_type):
-        return data.encode("utf-8")
-
-    # Members of lists
-    if isinstance(data, list):
-        return [_byteify(item) for item in data]
-
-    # Members of dicts
-    if isinstance(data, dict):
-        return {
-            _byteify(key): _byteify(value) for key, value in data.items()
-        }
-
-    # Anything else, return the original form
-    return data
-
-
-def schedule(task, delay=10):
-    """Delay execution of `task` by `delay` milliseconds
-
-    As opposed to a plain `QTimer.singleShot`, this will also
-    ensure that only one task is ever queued at any one time.
-
-    """
-
-    try:
-        module._current_task.stop()
-    except AttributeError:
-        # No task currently running
-        pass
-
-    timer = QtCore.QTimer()
-    timer.setSingleShot(True)
-    timer.timeout.connect(task)
-    timer.start(delay)
-
-    module._current_task = timer
-
-
-def walk(root):
+def dirs(root):
     try:
         base, dirs, files = next(os.walk(root))
     except (IOError, StopIteration):
@@ -427,52 +380,3 @@ def walk(root):
         return list()
 
     return dirs
-
-
-def launch(executable, args=None, environment=None):
-    """Launch a new subprocess of `args`
-
-    Arguments:
-        executable (str): Relative or absolute path to executable
-        args (list): Command passed to `subprocess.Popen`
-        environment (dict, optional): Custom environment passed
-            to Popen instance.
-
-    Returns:
-        Popen instance of newly spawned process
-
-    Exceptions:
-        OSError on internal error
-        ValueError on `executable` not found
-
-    """
-
-    CREATE_NO_WINDOW = 0x08000000
-    IS_WIN32 = sys.platform == "win32"
-
-    abspath = executable
-
-    kwargs = dict(
-        args=[abspath] + args or list(),
-        env=environment or os.environ,
-
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-
-        # Output `str` through stdout on Python 2 and 3
-        universal_newlines=True,
-
-        shell=True
-    )
-
-    if IS_WIN32:
-        kwargs["creationflags"] = CREATE_NO_WINDOW
-
-    popen = subprocess.Popen(**kwargs)
-
-    return popen
-
-
-def stream(stream):
-    for line in iter(stream.readline, ""):
-        yield line

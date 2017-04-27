@@ -1,8 +1,12 @@
 import os
 import sys
+import subprocess
+
+from PyQt5 import QtCore
 
 self = sys.modules[__name__]
 self._path = os.path.dirname(__file__)
+self._current_task = None
 
 try:
     basestring
@@ -48,7 +52,7 @@ def which_app(app):
     """
 
     for path in os.environ["PATH"].split(os.pathsep):
-        fname = app + ".json"
+        fname = app + ".yml"
         abspath = os.path.join(path.strip('"'), fname)
 
         if os.path.isfile(abspath):
@@ -97,3 +101,74 @@ def dict_format(original, **kwargs):
                 new_list.append(value)
 
         return new_list
+
+
+def schedule(task, delay=10):
+    """Delay execution of `task` by `delay` milliseconds
+
+    As opposed to a plain `QTimer.singleShot`, this will also
+    ensure that only one task is ever queued at any one time.
+
+    """
+
+    try:
+        self._current_task.stop()
+    except AttributeError:
+        # No task currently running
+        pass
+
+    timer = QtCore.QTimer()
+    timer.setSingleShot(True)
+    timer.timeout.connect(task)
+    timer.start(delay)
+
+    self._current_task = timer
+
+
+def launch(executable, args=None, environment=None):
+    """Launch a new subprocess of `args`
+
+    Arguments:
+        executable (str): Relative or absolute path to executable
+        args (list): Command passed to `subprocess.Popen`
+        environment (dict, optional): Custom environment passed
+            to Popen instance.
+
+    Returns:
+        Popen instance of newly spawned process
+
+    Exceptions:
+        OSError on internal error
+        ValueError on `executable` not found
+
+    """
+
+    CREATE_NO_WINDOW = 0x08000000
+    IS_WIN32 = sys.platform == "win32"
+
+    abspath = executable
+
+    kwargs = dict(
+        args=[abspath] + args or list(),
+        env=environment or os.environ,
+
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+
+        # Output `str` through stdout on Python 2 and 3
+        universal_newlines=True,
+
+        shell=True
+    )
+
+    if IS_WIN32:
+        kwargs["creationflags"] = CREATE_NO_WINDOW
+
+    popen = subprocess.Popen(**kwargs)
+
+    return popen
+
+
+def stream(stream):
+    for line in iter(stream.readline, ""):
+        yield line
