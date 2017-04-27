@@ -69,6 +69,23 @@ class Controller(QtCore.QObject):
 
         frame = self.frame.copy()
 
+        template_private = frame["config"]["template"]["private"]
+
+        try:
+            workdir = template_private.format(
+                projectpath=frame["environment"]["projectpath"],
+                silo=frame["environment"]["silo"],
+                asset=frame["environment"]["asset"],
+                task=frame["environment"]["task"],
+                user=getpass.getuser(),
+                app=app["application_dir"],
+            ).replace("/", os.sep)
+
+        except KeyError as e:
+            return io.log("Missing environment variable: %s" % e, io.ERROR)
+
+        frame["environment"]["workdir"] = workdir
+
         environment = dict(os.environ, **{
             "MINDBENDER_" + key.upper(): value
             for key, value in frame["environment"].items()
@@ -94,23 +111,6 @@ class Controller(QtCore.QObject):
             else:
                 io.log("Unsupported environment variable in %s"
                        % application_json, io.ERROR)
-
-        template_private = frame["config"]["template"]["private"]
-
-        try:
-            workdir = template_private.format(
-                projectpath=frame["environment"]["projectpath"],
-                silo=frame["environment"]["silo"],
-                asset=frame["environment"]["asset"],
-                task=frame["environment"]["task"],
-                user=getpass.getuser(),
-                app=app["application_dir"],
-            ).replace("/", os.sep)
-
-        except KeyError as e:
-            return io.log("Missing environment variable: %s" % e, io.ERROR)
-
-        frame["environment"]["workdir"] = workdir
 
         try:
             os.makedirs(workdir)
