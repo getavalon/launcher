@@ -79,12 +79,23 @@ class Controller(QtCore.QObject):
                 task=frame["environment"]["task"],
                 user=getpass.getuser(),
                 app=app["application_dir"],
-            ).replace("/", os.sep)
+            )
 
         except KeyError as e:
             return io.log("Missing environment variable: %s" % e, io.ERROR)
 
-        frame["environment"]["workdir"] = workdir
+        template_rootpath = template_private.split("{silo}")[0]
+        template_assetpath = template_private.split("{asset}")[0] + "{asset}"
+        template_taskpath = template_private.split("{task}")[0] + "{task}"
+
+        rootpath = template_rootpath.format(**frame["environment"])
+        assetpath = template_assetpath.format(**frame["environment"])
+        taskpath = template_taskpath.format(**frame["environment"])
+
+        frame["environment"]["root"] = rootpath.replace("/", os.sep)
+        frame["environment"]["assetpath"] = assetpath.replace("/", os.sep)
+        frame["environment"]["taskpath"] = taskpath.replace("/", os.sep)
+        frame["environment"]["workdir"] = workdir.replace("/", os.sep)
 
         environment = dict(os.environ, **{
             "MINDBENDER_" + key.upper(): value
@@ -289,7 +300,6 @@ class Controller(QtCore.QObject):
 
         model = [
             {
-                "path": path,
                 "label": key,
                 "icon": module._icons["defaultSilo"]
             }
@@ -304,12 +314,10 @@ class Controller(QtCore.QObject):
         self.pushed.emit(item, model)
 
     def on_silo_changed(self, item):
-        path = os.path.join(item["path"], item["label"])
         frame = self.frame.copy()
 
         model = [
             {
-                "path": path,
                 "label": key,
                 "icon": module._icons["defaultAsset"]
             }
@@ -322,12 +330,10 @@ class Controller(QtCore.QObject):
         self.pushed.emit(item["label"], model)
 
     def on_asset_changed(self, item):
-        path = os.path.join(item["path"], item["label"])
         frame = self.frame.copy()
 
         model = [
             dict({
-                "path": path,
                 "label": task["name"],
                 "icon": module._icons["defaultTask"]
             }, **task)
@@ -335,13 +341,11 @@ class Controller(QtCore.QObject):
         ]
 
         frame["environment"]["asset"] = item["label"]
-        frame["environment"]["assetpath"] = path
 
         self._frames.append(frame)
         self.pushed.emit(item["label"], model)
 
     def on_task_changed(self, item):
-        path = os.path.join(item["path"], item["label"])
 
         frame = self.frame.copy()
         model = [
@@ -352,7 +356,6 @@ class Controller(QtCore.QObject):
             for app in frame["config"].get("apps", [])
         ]
 
-        frame["environment"]["taskpath"] = os.path.join(path, "work")
         frame["environment"]["task"] = item["label"]
 
         self._frames.append(frame)
