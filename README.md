@@ -108,8 +108,8 @@ tasks:
     name: lookdev
 
 template:
-    asset: "{projectpath}/{silo}/{asset}"
-    task: "{projectpath}/{silo}/{asset}/work/{task}/{user}/{app}"
+    public: "{projectpath}/{silo}/{asset}/publish/{subset}/{version}/{subset}.{representation}"
+    private: "{projectpath}/{silo}/{asset}/work/{task}/{user}/{app}"
 ```
 
 ##### Anatomy

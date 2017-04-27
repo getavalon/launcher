@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import errno
+import shutil
 import getpass
 import traceback
 import subprocess
@@ -61,52 +62,26 @@ class Controller(QtCore.QObject):
         application_json = lib.which_app(item["label"])
 
         if application_json is None:
-            return io.log("%s not found." % item["label"])
+            return io.log("%s not found." % item["label"], io.ERROR)
 
         with open(application_json) as f:
             app = json.load(f)
 
         frame = self.frame.copy()
-        template_task = frame["config"]["template"]["task"]
 
-        try:
-            workdir = template_task.format(
-                projectpath=frame["env"]["MINDBENDER_PROJECTPATH"],
-                silo=frame["env"]["MINDBENDER_SILO"],
-                asset=frame["env"]["MINDBENDER_ASSET"],
-                task=frame["env"]["MINDBENDER_TASK"],
-                user=getpass.getuser(),
-                app=app["application_dir"],
-            ).replace("/", os.sep)
-
-        except KeyError as e:
-            return io.log("Missing environment variable: %s" % e)
-
-        frame["env"]["MINDBENDER_WORKDIR"] = workdir
-
-        try:
-            os.makedirs(workdir)
-            io.log("Creating working directory '%s'" % workdir)
-
-        except OSError as e:
-
-            # An already existing working directory is fine.
-            if e.errno == errno.EEXIST:
-                io.log("Existing working directory found.")
-
-            else:
-                io.log("Could not create working directory.")
-                return io.log(traceback.format_exc())
-
-        environment = dict(os.environ, **frame["env"])
+        environment = dict(os.environ, **{
+            "MINDBENDER_" + key.upper(): value
+            for key, value in frame["environment"].items()
+        })
 
         try:
             app = lib.dict_format(app, **environment)
         except KeyError as e:
             io.log("Application error: variable %s "
-                   "not found in application .json" % e)
-            return io.log("This is typically a bug in the program "
-                          "or pipeline.")
+                   "not found in application .json" % e, io.ERROR)
+            io.log(json.dumps(environment, indent=4, sort_keys=True), io.ERROR)
+            return io.log("This is typically a bug in the pipeline, "
+                          "ask your developer.", io.ERROR)
 
         for key, value in app.get("environment", {}).items():
             if isinstance(value, list):
@@ -118,13 +93,58 @@ class Controller(QtCore.QObject):
 
             else:
                 io.log("Unsupported environment variable in %s"
-                       % application_json)
+                       % application_json, io.ERROR)
+
+        template_private = frame["config"]["template"]["private"]
+
+        try:
+            workdir = template_private.format(
+                projectpath=frame["environment"]["projectpath"],
+                silo=frame["environment"]["silo"],
+                asset=frame["environment"]["asset"],
+                task=frame["environment"]["task"],
+                user=getpass.getuser(),
+                app=app["application_dir"],
+            ).replace("/", os.sep)
+
+        except KeyError as e:
+            return io.log("Missing environment variable: %s" % e, io.ERROR)
+
+        frame["environment"]["workdir"] = workdir
+
+        try:
+            os.makedirs(workdir)
+            io.log("Creating working directory '%s'" % workdir, io.INFO)
+
+        except OSError as e:
+
+            # An already existing working directory is fine.
+            if e.errno == errno.EEXIST:
+                io.log("Existing working directory found.", io.INFO)
+
+            else:
+                io.log("Could not create working directory.", io.ERROR)
+                return io.log(traceback.format_exc(), io.ERROR)
+
+        else:
+            io.log("Creating default directories..", io.DEBUG)
+            for dirname in app.get("default_dirs", []):
+                io.log(" - %s" % dirname, io.DEBUG)
+                os.makedirs(os.path.join(workdir, dirname))
+
+        # Perform application copy
+        for src, dst in app.get("copy", {}).items():
+            try:
+                shutil.copy(src, dst)
+            except OSError as e:
+                io.log("Could not copy application file: %s" % e, io.ERROR)
+                io.log(" - %s -> %s" % (src, dst), io.ERROR)
 
         # Asset environment variables
-        silo = frame["env"]["MINDBENDER_SILO"]
-        asset = frame["env"]["MINDBENDER_ASSET"]
+        silo = frame["environment"]["silo"]
+        asset = frame["environment"]["asset"]
         for key, value in (frame["inventory"][silo][asset] or {}).items():
-            environment["MINDBENDER_" + key.upper()] = str(value)
+            environment["" + key.upper()] = str(value)
 
         args = item.get("args", []) + app.get("arguments", [])
 
@@ -156,13 +176,12 @@ class Controller(QtCore.QObject):
             messaged = Signal(str)
 
             def run(self):
-                self.messaged.emit("Listening")
                 for line in stream(process["popen"].stdout):
                     self.messaged.emit(line.rstrip())
                 self.messaged.emit("%s killed." % process["app"]["executable"])
 
         thread = Thread()
-        thread.messaged.connect(lambda line: io.log(line))
+        thread.messaged.connect(lambda line: io.log(line, io.INFO))
 
         process.update({
             "app": app,
@@ -190,7 +209,7 @@ class Controller(QtCore.QObject):
     @Property("QVariant", notify=navigated)
     def environment(self):
         try:
-            frame = self._frames[-1]["env"]
+            frame = self._frames[-1]["environment"]
         except (IndexError, KeyError):
             return list()
         else:
@@ -277,9 +296,9 @@ class Controller(QtCore.QObject):
             for key in inventory
         ]
 
-        frame["env"] = dict()
-        frame["env"]["MINDBENDER_PROJECT"] = item["label"]
-        frame["env"]["MINDBENDER_PROJECTPATH"] = path
+        frame["environment"] = dict()
+        frame["environment"]["project"] = item["label"]
+        frame["environment"]["projectpath"] = path
 
         self._frames.append(frame)
         self.pushed.emit(item, model)
@@ -297,7 +316,7 @@ class Controller(QtCore.QObject):
             for key in frame["inventory"][item["label"]]
         ]
 
-        frame["env"]["MINDBENDER_SILO"] = item["label"]
+        frame["environment"]["silo"] = item["label"]
 
         self._frames.append(frame)
         self.pushed.emit(item["label"], model)
@@ -315,8 +334,8 @@ class Controller(QtCore.QObject):
             for task in frame["config"].get("tasks", [])
         ]
 
-        frame["env"]["MINDBENDER_ASSET"] = item["label"]
-        frame["env"]["MINDBENDER_ASSETPATH"] = path
+        frame["environment"]["asset"] = item["label"]
+        frame["environment"]["assetpath"] = path
 
         self._frames.append(frame)
         self.pushed.emit(item["label"], model)
@@ -333,8 +352,8 @@ class Controller(QtCore.QObject):
             for app in frame["config"].get("apps", [])
         ]
 
-        frame["env"]["MINDBENDER_TASKPATH"] = os.path.join(path, "work")
-        frame["env"]["MINDBENDER_TASK"] = item["label"]
+        frame["environment"]["taskpath"] = os.path.join(path, "work")
+        frame["environment"]["task"] = item["label"]
 
         self._frames.append(frame)
         self.pushed.emit(item["label"], model)
