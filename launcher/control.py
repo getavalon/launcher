@@ -67,6 +67,12 @@ class Controller(QtCore.QObject):
         with open(application_json) as f:
             app = json.load(f)
 
+        args = item.get("args", []) + app.get("arguments", [])
+        executable = lib.which(app["executable"])
+
+        if executable is None:
+            return io.log("%s could not be found." % executable, io.ERROR)
+
         frame = self.frame.copy()
 
         template_private = frame["config"]["template"]["private"]
@@ -157,11 +163,9 @@ class Controller(QtCore.QObject):
         for key, value in (frame["inventory"][silo][asset] or {}).items():
             environment["" + key.upper()] = str(value)
 
-        args = item.get("args", []) + app.get("arguments", [])
-
         try:
             popen = launch(
-                executable=app["executable"],
+                executable=executable,
                 args=args,
                 environment=environment
             )
@@ -177,7 +181,7 @@ class Controller(QtCore.QObject):
 
         else:
             io.log("Launching {executable} {args}".format(
-                executable=app["executable"],
+                executable=executable,
                 args=" ".join(args))
             )
 
@@ -303,7 +307,7 @@ class Controller(QtCore.QObject):
                 "label": key,
                 "icon": module._icons["defaultSilo"]
             }
-            for key in inventory
+            for key in sorted(inventory)
         ]
 
         frame["environment"] = dict()
@@ -321,7 +325,7 @@ class Controller(QtCore.QObject):
                 "label": key,
                 "icon": module._icons["defaultAsset"]
             }
-            for key in frame["inventory"][item["label"]]
+            for key in sorted(frame["inventory"][item["label"]])
         ]
 
         frame["environment"]["silo"] = item["label"]
@@ -337,7 +341,9 @@ class Controller(QtCore.QObject):
                 "label": task["name"],
                 "icon": module._icons["defaultTask"]
             }, **task)
-            for task in frame["config"].get("tasks", [])
+            for task in sorted(
+                frame["config"].get("tasks", []),
+                key=lambda t: t["name"])
         ]
 
         frame["environment"]["asset"] = item["label"]
@@ -353,7 +359,9 @@ class Controller(QtCore.QObject):
                 "label": app["name"],
                 "icon": module._icons["defaultApp"]
             }, **app)
-            for app in frame["config"].get("apps", [])
+            for app in sorted(
+                frame["config"].get("apps", []),
+                key=lambda a: a["name"])
         ]
 
         frame["environment"]["task"] = item["label"]
