@@ -67,7 +67,6 @@ class Controller(QtCore.QObject):
         with open(application_json) as f:
             app = json.load(f)
 
-        args = item.get("args", []) + app.get("arguments", [])
         executable = lib.which(app["executable"])
 
         if executable is None:
@@ -162,6 +161,8 @@ class Controller(QtCore.QObject):
         asset = frame["environment"]["asset"]
         for key, value in (frame["inventory"][silo][asset] or {}).items():
             environment["" + key.upper()] = str(value)
+
+        args = item.get("args", []) + app.get("arguments", [])
 
         try:
             popen = launch(
