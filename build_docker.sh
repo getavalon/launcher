@@ -1,0 +1,1 @@
+docker build -f Dockerfile-py3.5 -t mottosso/launcher .

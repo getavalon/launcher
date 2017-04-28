@@ -1,0 +1,16 @@
+language: python
+
+sudo: required
+dist: trusty
+
+python:
+  - 2.7
+
+services:
+  - docker
+
+install:
+  - docker build -f Dockerfile-py3.5 -t launcher .
+
+script:
+  - docker run --rm -v $(pwd):/launcher launcher
