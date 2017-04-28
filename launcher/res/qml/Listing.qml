@@ -20,15 +20,12 @@ ListView {
         contentItem: RowLayout {
             anchors.fill: parent
             anchors.leftMargin: 5
-            spacing: 2
+            spacing: 6
             Layout.alignment: Qt.AlignLeft
 
-            Image {
-                source: Qt.resolvedUrl("/%1".arg(model.icon))
-                fillMode: Image.PreserveAspectFit
-                Layout.fillHeight: true
-                Layout.margins: 2
-                Layout.maximumWidth: height
+            AwesomeIcon {
+                name: model.icon
+                width: height
             }
 
             Text {

@@ -17,11 +17,11 @@ Property = QtCore.pyqtProperty
 
 DEFAULTS = {
     "icon": {
-        "project": lib.resource("icon", "project.png"),
-        "silo": lib.resource("icon", "silo.png"),
-        "asset": lib.resource("icon", "asset.png"),
-        "task": lib.resource("icon", "task.png"),
-        "app": lib.resource("icon", "app.png"),
+        "project": "map",
+        "silo": "database",
+        "asset": "plus-square",
+        "task": "male",
+        "app": "file",
     },
     "config": {
         "schema": "mindbender-core:config-1.0",

@@ -80,6 +80,7 @@ ApplicationWindow {
             anchors.fill: parent
             anchors.margins: 2
             anchors.topMargin: 5
+            anchors.leftMargin: 5
         }
     }
 
