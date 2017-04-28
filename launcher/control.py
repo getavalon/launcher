@@ -84,6 +84,7 @@ class Controller(QtCore.QObject):
         self._model = model.Model(
             items=[],
             roles=[
+                "name",
                 "label",
                 "icon",
                 "group"
@@ -96,18 +97,18 @@ class Controller(QtCore.QObject):
         # The current frame is visualised by the Terminal in the GUI.
         self._frames = list()
 
-    def launch(self, label):
+    def launch(self, name):
         """Launch `app`
 
         Arguments:
-            label (str): Name of app
+            name (str): Name of app
 
         """
 
-        application_definition = lib.which_app(label)
+        application_definition = lib.which_app(name)
 
         if application_definition is None:
-            return io.log("%s not found." % label, io.ERROR)
+            return io.log("%s not found." % name, io.ERROR)
 
         with open(application_definition) as f:
             app = yaml.load(f)
@@ -205,7 +206,7 @@ class Controller(QtCore.QObject):
 
         item = next(
             app for app in frame["config"]["apps"]
-            if app["name"] == label
+            if app["name"] == name
         )
         args = item.get("args", []) + app.get("arguments", [])
 
@@ -290,7 +291,7 @@ class Controller(QtCore.QObject):
 
         self._model.push([
             {
-                "label": project,
+                "name": project,
                 "icon": DEFAULTS["icon"]["project"]
             } for project in dirs(self._root)
         ])
@@ -308,8 +309,8 @@ class Controller(QtCore.QObject):
         self.navigated.emit()
 
     @Slot(str)
-    def push(self, breadcrumb):
-        self.breadcrumbs.append(breadcrumb)
+    def push(self, name):
+        self.breadcrumbs.append(name)
 
         level = len(self.breadcrumbs)
         handler = {
@@ -320,7 +321,7 @@ class Controller(QtCore.QObject):
             5: self.on_app_changed,
         }[level]
 
-        handler(breadcrumb)
+        handler(name)
         self.navigated.emit()
 
     @Slot()
@@ -336,8 +337,8 @@ class Controller(QtCore.QObject):
             self.popped.emit()
             self.navigated.emit()
 
-    def on_project_changed(self, label):
-        path = os.path.join(self._root, label)
+    def on_project_changed(self, name):
+        path = os.path.join(self._root, name)
         configpath = os.path.join(path, ".config.yml")
         inventorypath = os.path.join(path, ".inventory.yml")
 
@@ -369,14 +370,14 @@ class Controller(QtCore.QObject):
 
         self._model.push([
             {
-                "label": key,
+                "name": key,
                 "icon": DEFAULTS["icon"]["silo"]
             }
             for key in sorted(inventory)
             if key != "schema"
         ])
 
-        frame["environment"]["project"] = label
+        frame["environment"]["project"] = name
         frame["environment"]["projectpath"] = path
 
         # Install optional metadata
@@ -385,18 +386,18 @@ class Controller(QtCore.QObject):
         frame["environment"].update(config.get("metadata", {}))
 
         self._frames.append(frame)
-        self.pushed.emit(label)
+        self.pushed.emit(name)
 
-    def on_silo_changed(self, label):
+    def on_silo_changed(self, name):
         frame = self.current_frame()
 
         self._model.push([
             dict({
-                "label": (value or {}).get("label", key),
+                "name": key,
                 "icon": DEFAULTS["icon"]["asset"],
             }, **(value or {}))
             for key, value in sorted(
-                frame["inventory"][label].items(),
+                frame["inventory"][name].items(),
 
                 # Hard-sort by group
                 # TODO(marcus): Sorting should really happen in
@@ -416,17 +417,17 @@ class Controller(QtCore.QObject):
             )
         ])
 
-        frame["environment"]["silo"] = label
+        frame["environment"]["silo"] = name
 
         self._frames.append(frame)
-        self.pushed.emit(label)
+        self.pushed.emit(name)
 
-    def on_asset_changed(self, label):
+    def on_asset_changed(self, name):
         frame = self.current_frame()
 
         self._model.push([
             dict({
-                "label": task.get("label", task["name"]),
+                "name": task["name"],
                 "icon": DEFAULTS["icon"]["task"]
             }, **task)
             for task in sorted(
@@ -435,19 +436,19 @@ class Controller(QtCore.QObject):
         ])
 
         silo = frame["environment"]["silo"]
-        metadata = frame["inventory"][silo][label]
-        frame["environment"]["asset"] = label
+        metadata = frame["inventory"][silo][name]
+        frame["environment"]["asset"] = name
         frame["environment"].update((metadata or {}).items())
 
         self._frames.append(frame)
-        self.pushed.emit(label)
+        self.pushed.emit(name)
 
-    def on_task_changed(self, label):
+    def on_task_changed(self, name):
 
         frame = self.current_frame()
         self._model.push([
             dict({
-                "label": app["name"],
+                "name": app["name"],
                 "icon": DEFAULTS["icon"]["app"]
             }, **app)
             for app in sorted(
@@ -455,14 +456,14 @@ class Controller(QtCore.QObject):
                 key=lambda a: a["name"])
         ])
 
-        frame["environment"]["task"] = label
+        frame["environment"]["task"] = name
 
         self._frames.append(frame)
-        self.pushed.emit(label)
+        self.pushed.emit(name)
 
-    def on_app_changed(self, label):
+    def on_app_changed(self, name):
         """Launch application on clicking it"""
-        self.launch(label)
+        self.launch(name)
         self.breadcrumbs.pop()
 
 
