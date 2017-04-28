@@ -64,7 +64,7 @@ if sys.version_info[0] == 3:
 
 
 _MODULE_DIR = os.path.dirname(__file__)
-_SCHEMA_DIR = os.path.join(_MODULE_DIR, "schema")
+_SCHEMA_DIR = os.path.join(_MODULE_DIR, "res", "schema")
 
 _cache = {
     # A mock schema for docstring tests
