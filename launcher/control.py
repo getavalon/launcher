@@ -392,10 +392,28 @@ class Controller(QtCore.QObject):
 
         self._model.push([
             dict({
-                "label": key,
+                "label": (value or {}).get("label", key),
                 "icon": DEFAULTS["icon"]["asset"],
             }, **(value or {}))
-            for key, value in sorted(frame["inventory"][label].items())
+            for key, value in sorted(
+                frame["inventory"][label].items(),
+
+                # Hard-sort by group
+                # TODO(marcus): Sorting should really happen in
+                # the model, via e.g. a Proxy.
+                key=lambda item: (
+                    # Sort by group
+                    (item[1] or {}).get(
+                        "group",
+
+                        # Put items without a
+                        # group at the top
+                        "0"),
+
+                    # Sort inner items by name
+                    item[0]
+                )
+            )
         ])
 
         frame["environment"]["silo"] = label

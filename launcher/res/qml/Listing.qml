@@ -9,7 +9,9 @@ ListView {
     section.delegate: Label {
         text: section
         color: "#888"
-        lineHeight: 1.3
+        verticalAlignment: Text.AlignBottom
+        height: 25
+        bottomPadding: 3
     }
 
     delegate: ItemDelegate {
