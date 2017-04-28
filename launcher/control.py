@@ -1,39 +1,79 @@
 import os
-import sys
 import json
+import copy
 import errno
 import shutil
 import getpass
 import traceback
 
-from PyQt5 import QtCore, QtQml
+from PyQt5 import QtCore
 
-from . import lib, io
+from . import lib, io, schema, model
 from .vendor import yaml
 
 Signal = QtCore.pyqtSignal
 Slot = QtCore.pyqtSlot
 Property = QtCore.pyqtProperty
 
-module = sys.modules[__name__]
-module._icons = {
-    "defaultProject": lib.resource("icon", "project.png"),
-    "defaultSilo": lib.resource("icon", "silo.png"),
-    "defaultAsset": lib.resource("icon", "asset.png"),
-    "defaultTask": lib.resource("icon", "task.png"),
-    "defaultApp": lib.resource("icon", "app.png"),
+DEFAULTS = {
+    "icon": {
+        "project": lib.resource("icon", "project.png"),
+        "silo": lib.resource("icon", "silo.png"),
+        "asset": lib.resource("icon", "asset.png"),
+        "task": lib.resource("icon", "task.png"),
+        "app": lib.resource("icon", "app.png"),
+    },
+    "config": {
+        "schema": "mindbender-core:config-1.0",
+        "apps": [
+            {
+                "name": "python",
+                "args": [
+                    "-u", "-c",
+                    "print('Default Python does nothing')"
+                ]
+            }
+        ],
+        "tasks": [{"name": "default"}],
+        "template": {
+            "publish": "{projectpath}/publish",
+            "work": "{projectpath}/work"
+        }
+    },
+    "inventory": {
+        "schema": "mindbender-core:inventory-1.0",
+
+        "assets": {
+            "Default asset 1": None,
+            "Default asset 2": None,
+        },
+        "film": {
+            "Default shot 1": {
+                "edit_in": 1000,
+                "edit_out": 1143
+            },
+            "Default shot 2": {
+                "edit_in": 1000,
+                "edit_out": 1081
+            },
+        }
+    }
 }
 
 
 class Controller(QtCore.QObject):
-    pushed = Signal("QVariant",
-                    "QVariant",
-                    arguments=["label",
-                               "items"])
+    # An item was clicked, causing an environment change
+    #
+    # Arguments:
+    #   label (str): The visual name of the item
+    #
+    pushed = Signal(str, arguments=["label"])
 
+    # The back button was pressed
     popped = Signal()
+
+    # The hierarchy was navigated, either forwards or backwards
     navigated = Signal()
-    threaded_message = Signal()
 
     def __init__(self, root, parent=None):
         super(Controller, self).__init__(parent)
@@ -41,6 +81,13 @@ class Controller(QtCore.QObject):
         self._root = root
         self._breadcrumbs = list()
         self._processes = list()
+        self._model = model.Model(
+            items=[],
+            roles=[
+                "label",
+                "icon",
+                "group"
+            ])
 
         # A "frame" contains the environment at a given point
         # in the asset hierarchy. For example, browsing all the
@@ -49,28 +96,30 @@ class Controller(QtCore.QObject):
         # The current frame is visualised by the Terminal in the GUI.
         self._frames = list()
 
-    def launch(self, item):
+    def launch(self, label):
         """Launch `app`
 
         Arguments:
-            item (dict): Object from GUI
+            label (str): Name of app
 
         """
 
-        application_json = lib.which_app(item["label"])
+        application_definition = lib.which_app(label)
 
-        if application_json is None:
-            return io.log("%s not found." % item["label"], io.ERROR)
+        if application_definition is None:
+            return io.log("%s not found." % label, io.ERROR)
 
-        with open(application_json) as f:
+        with open(application_definition) as f:
             app = yaml.load(f)
+            io.log(json.dumps(app, indent=4), io.DEBUG)
+            schema.validate(app, "application")
 
         executable = lib.which(app["executable"])
 
         if executable is None:
             return io.log("%s could not be found." % executable, io.ERROR)
 
-        frame = self.frame.copy()
+        frame = self.current_frame()
 
         template_private = frame["config"]["template"]["work"]
 
@@ -98,7 +147,7 @@ class Controller(QtCore.QObject):
         frame["environment"]["workdir"] = workdir.replace("/", os.sep)
 
         environment = dict(os.environ, **{
-            "MINDBENDER_" + key.upper(): value
+            "MINDBENDER_" + key.upper(): str(value)
             for key, value in frame["environment"].items()
         })
 
@@ -113,7 +162,7 @@ class Controller(QtCore.QObject):
 
         for key, value in app.get("environment", {}).items():
             if isinstance(value, list):
-                # Treat list values as application_json variables
+                # Treat list values as application_definition variables
                 environment[key] = os.pathsep.join(value)
 
             elif isinstance(value, str):
@@ -121,7 +170,7 @@ class Controller(QtCore.QObject):
 
             else:
                 io.log("Unsupported environment variable in %s"
-                       % application_json, io.ERROR)
+                       % application_definition, io.ERROR)
 
         try:
             os.makedirs(workdir)
@@ -145,18 +194,19 @@ class Controller(QtCore.QObject):
 
         # Perform application copy
         for src, dst in app.get("copy", {}).items():
+            dst = os.path.join(workdir, dst)
+
             try:
+                io.log("Copying %s -> %s" % (src, dst))
                 shutil.copy(src, dst)
             except OSError as e:
                 io.log("Could not copy application file: %s" % e, io.ERROR)
                 io.log(" - %s -> %s" % (src, dst), io.ERROR)
 
-        # Asset environment variables
-        silo = frame["environment"]["silo"]
-        asset = frame["environment"]["asset"]
-        for key, value in (frame["inventory"][silo][asset] or {}).items():
-            environment["" + key.upper()] = str(value)
-
+        item = next(
+            app for app in frame["config"]["apps"]
+            if app["name"] == label
+        )
         args = item.get("args", []) + app.get("arguments", [])
 
         try:
@@ -206,11 +256,12 @@ class Controller(QtCore.QObject):
         thread.start()
         return process
 
-    @property
-    def frame(self):
+    def current_frame(self):
         """Shorthand for the current frame"""
         try:
-            return self._frames[-1]
+            # Nested dictionaries require deep copying.
+            return copy.deepcopy(self._frames[-1])
+
         except IndexError:
             return dict()
 
@@ -230,27 +281,35 @@ class Controller(QtCore.QObject):
                 for key, value in frame.items()
             ]
 
+    @Property(model.Model, notify=navigated)
+    def model(self):
+        return self._model
+
     def init(self):
         header = "Root"
-        model = [
+
+        self._model.push([
             {
                 "label": project,
-                "icon": module._icons["defaultProject"]
+                "icon": DEFAULTS["icon"]["project"]
             } for project in dirs(self._root)
-        ]
+        ])
 
-        frame = dict()
+        frame = {
+            "environment": {
+                # Indicate that the launched application was
+                # launched using the launcher.
+                "with_launcher": "True"
+            },
+        }
         self._frames[:] = [frame]
 
-        self.pushed.emit(header, model)
+        self.pushed.emit(header)
         self.navigated.emit()
 
-    @Slot(QtQml.QJSValue)
+    @Slot(str)
     def push(self, breadcrumb):
-        breadcrumb = dict(breadcrumb.toVariant())
-
-        label = breadcrumb["label"]
-        self.breadcrumbs.append(label)
+        self.breadcrumbs.append(breadcrumb)
 
         level = len(self.breadcrumbs)
         handler = {
@@ -267,6 +326,7 @@ class Controller(QtCore.QObject):
     @Slot()
     def pop(self):
         self._frames.pop()
+        self._model.pop()
 
         try:
             self.breadcrumbs.pop()
@@ -276,99 +336,115 @@ class Controller(QtCore.QObject):
             self.popped.emit()
             self.navigated.emit()
 
-    def on_project_changed(self, item):
-        path = os.path.join(self._root, item["label"])
+    def on_project_changed(self, label):
+        path = os.path.join(self._root, label)
         configpath = os.path.join(path, ".config.yml")
         inventorypath = os.path.join(path, ".inventory.yml")
 
         try:
             with open(configpath) as f:
                 config = yaml.load(f)
-                config.pop("schema")
+                schema.validate(config, "config")
         except IOError:
-            config = dict()
+            config = DEFAULTS["config"]
+        except (schema.ValidationError, schema.SchemaError):
+            return io.log("%s has been misconfigured, "
+                          "speak to your supervisor."
+                          % configpath, io.ERROR)
 
         try:
             with open(inventorypath) as f:
                 inventory = yaml.load(f)
-                inventory.pop("schema")
+                schema.validate(config, "inventory")
         except IOError:
-            inventory = dict()
+            inventory = DEFAULTS["inventory"]
+        except (schema.ValidationError, schema.SchemaError):
+            return io.log("%s has been misconfigured, "
+                          "speak to your supervisor."
+                          % inventorypath, io.ERROR)
 
-        frame = self.frame.copy()
+        frame = self.current_frame()
         frame["config"] = config
         frame["inventory"] = inventory
 
-        model = [
+        self._model.push([
             {
                 "label": key,
-                "icon": module._icons["defaultSilo"]
+                "icon": DEFAULTS["icon"]["silo"]
             }
             for key in sorted(inventory)
-        ]
+            if key != "schema"
+        ])
 
-        frame["environment"] = dict()
-        frame["environment"]["project"] = item["label"]
+        frame["environment"]["project"] = label
         frame["environment"]["projectpath"] = path
 
-        self._frames.append(frame)
-        self.pushed.emit(item, model)
-
-    def on_silo_changed(self, item):
-        frame = self.frame.copy()
-
-        model = [
-            {
-                "label": key,
-                "icon": module._icons["defaultAsset"]
-            }
-            for key in sorted(frame["inventory"][item["label"]])
-        ]
-
-        frame["environment"]["silo"] = item["label"]
+        # Install optional metadata
+        # TODO(marcus): Once ls() has been adapted to use the inventory,
+        # data will be fetched not from the environment, but from there.
+        frame["environment"].update(config.get("metadata", {}))
 
         self._frames.append(frame)
-        self.pushed.emit(item["label"], model)
+        self.pushed.emit(label)
 
-    def on_asset_changed(self, item):
-        frame = self.frame.copy()
+    def on_silo_changed(self, label):
+        frame = self.current_frame()
 
-        model = [
+        self._model.push([
             dict({
-                "label": task["name"],
-                "icon": module._icons["defaultTask"]
+                "label": key,
+                "icon": DEFAULTS["icon"]["asset"],
+            }, **(value or {}))
+            for key, value in sorted(frame["inventory"][label].items())
+        ])
+
+        frame["environment"]["silo"] = label
+
+        self._frames.append(frame)
+        self.pushed.emit(label)
+
+    def on_asset_changed(self, label):
+        frame = self.current_frame()
+
+        self._model.push([
+            dict({
+                "label": task.get("label", task["name"]),
+                "icon": DEFAULTS["icon"]["task"]
             }, **task)
             for task in sorted(
                 frame["config"].get("tasks", []),
                 key=lambda t: t["name"])
-        ]
+        ])
 
-        frame["environment"]["asset"] = item["label"]
+        silo = frame["environment"]["silo"]
+        metadata = frame["inventory"][silo][label]
+        frame["environment"]["asset"] = label
+        frame["environment"].update((metadata or {}).items())
 
         self._frames.append(frame)
-        self.pushed.emit(item["label"], model)
+        self.pushed.emit(label)
 
-    def on_task_changed(self, item):
+    def on_task_changed(self, label):
 
-        frame = self.frame.copy()
-        model = [
+        frame = self.current_frame()
+        self._model.push([
             dict({
                 "label": app["name"],
-                "icon": module._icons["defaultApp"]
+                "icon": DEFAULTS["icon"]["app"]
             }, **app)
             for app in sorted(
                 frame["config"].get("apps", []),
                 key=lambda a: a["name"])
-        ]
+        ])
 
-        frame["environment"]["task"] = item["label"]
+        frame["environment"]["task"] = label
 
         self._frames.append(frame)
-        self.pushed.emit(item["label"], model)
+        self.pushed.emit(label)
 
-    def on_app_changed(self, item):
+    def on_app_changed(self, label):
         """Launch application on clicking it"""
-        self.launch(item)
+        self.launch(label)
         self.breadcrumbs.pop()
 
 

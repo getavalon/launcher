@@ -14,8 +14,11 @@ ERROR = 1 << 3
 
 
 def init():
-    self.terminal = model.Model()
+    self.terminal = model.Model([], roles=["line"])
 
 
 def log(line, level=INFO):
-    self.terminal.append(line)
+    self.terminal.append({
+        "line": line,
+        "level": level
+    })

@@ -72,9 +72,10 @@ ApplicationWindow {
             left: parent.left
         }
 
-        StackView {
-            id: browser
+        Listing {
+            id: browserView
             clip: true
+            model: controller.model
             anchors.fill: parent
             anchors.margins: 2
         }
@@ -149,8 +150,9 @@ ApplicationWindow {
      */
     Connections {
         target: controller
-        onPushed: browser.push(_listing, { model: items })
-        onPopped: browser.pop()
+
+        onPushed: browserAnimation.restart()
+        onPopped: browserAnimation.restart()
     }
 
     Connections {
@@ -158,8 +160,9 @@ ApplicationWindow {
         onRowsInserted: terminalView.positionViewAtEnd()
     }
 
-    Component {
-        id: _listing
-        Listing { }
+    SequentialAnimation {
+        id: browserAnimation
+        NumberAnimation { target: browserView; property: "opacity"; to: 0; duration: 0 }
+        NumberAnimation { target: browserView; property: "opacity"; to: 1; duration: 100 }
     }
 }
