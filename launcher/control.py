@@ -348,8 +348,11 @@ class Controller(QtCore.QObject):
                 schema.validate(config, "config")
         except IOError:
             config = DEFAULTS["config"]
-        except (schema.ValidationError, schema.SchemaError):
-            return io.log("%s has been misconfigured, "
+        except (schema.ValidationError,
+                schema.SchemaError,
+                yaml.scanner.ScannerError):
+            self._breadcrumbs.pop()
+            return io.log("ERROR: %s has been misconfigured, "
                           "speak to your supervisor."
                           % configpath, io.ERROR)
 
@@ -359,8 +362,11 @@ class Controller(QtCore.QObject):
                 schema.validate(config, "inventory")
         except IOError:
             inventory = DEFAULTS["inventory"]
-        except (schema.ValidationError, schema.SchemaError):
-            return io.log("%s has been misconfigured, "
+        except (schema.ValidationError,
+                schema.SchemaError,
+                yaml.scanner.ScannerError):
+            self._breadcrumbs.pop()
+            return io.log("ERROR: %s has been misconfigured, "
                           "speak to your supervisor."
                           % inventorypath, io.ERROR)
 
