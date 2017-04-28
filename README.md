@@ -11,7 +11,8 @@ The Launcher provides an interface towards the file-system and environment.
 | Section                           | Description
 |:----------------------------------|:----------------
 | [Inventory API](#inventory-api)   | Assets and shots, including metadata.
-| [Definition API](#definition-api) | Tasks, applications and directory layout
+| [Configuration API](#configuration-api) | Tasks, applications and directory layout
+| [Executable API](#executable-api) | Applications, their directories and variables.
 
 <br>
 
@@ -32,14 +33,19 @@ The inventory contains all ASSETs of a project, including metadata.
 ```yaml
 schema: mindbender-core:inventory-1.0
 
+# Available assets
 assets:
   "Bruce":
   "Batman":
   "Camera":
   "Tarantula":
 
+# Available shots
 film:
   "1000":
+
+    # Optional metadata per shot, available as environment
+    # variables prefixed `MINDBENDER_`, e.g. `MINDBENDER_EDIT_IN`
     edit_in: 1000
     edit_out: 1143
 
@@ -56,94 +62,113 @@ The above is an example of an "inventory". A complete snapshot of all available 
 
 <br>
 
-##### Anatomy
+#### Configuration API
 
-The format of the inventory is as follows.
-
-```yaml
-{silo}
-  "{asset}": {metadata}
-```
-
-| Key      | Description
-|:---------|:----------
-| silo     | Name of the current silo, such as `assets` or `film` (currently only these two are supported).
-| asset    | Name of the given ASSET. All children of a silo is considered an ASSET, including shots.
-| metadata | Optional metadata, as key: value entries.
-
-<br>
-
-##### Metadata
-
-The metadata is made available as environment variables, prefixed with `MINDBENDER_`. For example, `edit_in` is made available for the given shot as `MINDBENDER_EDIT_IN`.
-
-<br>
-
-#### Definition API
-
-The project definition contains the applications and tasks available within a given project, along with the template used to create directories.
+The project configuration contains the applications and tasks available within a given project, along with the template used to create directories.
 
 **.config.yml**
 
 ```yaml
 schema: mindbender-core:config-1.0
 
+# Project metadata, available as environment
+# variables, prefixed `MINDBENDER_`
+metadata:
+    fps: 25
+    resolution_width: 1920
+    resolution_height: 1080
+
+# Available applications to choose from, the name references
+# the executable API (see below)
 apps:
   - name: maya2016
   - name: nuke10
   - name: python
     args: [-u, -c, print('Something nice')]
 
+# Available tasks to choose from.
 tasks:
-  - label: animation
+  - label: Character Animation
     name: animation
 
-  - label: modeling
+  - label: Modeling
     name: modeling
 
-  - label: rigging
+  - label: Character Rigging
     name: rigging
 
-  - label: lookdev
+  - label: Look Development
     name: lookdev
 
+# Directory layouts for this project.
 template:
-    public: "{projectpath}/{silo}/{asset}/publish/{subset}/{version}/{subset}.{representation}"
-    private: "{projectpath}/{silo}/{asset}/work/{task}/{user}/{app}"
+    work: "{projectpath}/{silo}/{asset}/work/{task}/{user}/{app}"
+    publish: "{projectpath}/{silo}/{asset}/publish/{subset}/{version}/{subset}.{representation}"
 ```
-
-##### Anatomy
-
-The anatomy of a definition file contains three major sections.
-
-| Section  | Description
-|:---------|:-------------
-| schema   | A pre-defined keyword to uniquely identify the format of this file.
-| [apps](#apps)     | A list of dictionary elements, one per application
-| [tasks](#tasks)    | A list of dictionary elements, one per task
-| [template](#template) | A dictionary of template key/value pairs.
 
 <br>
 
-##### `apps`
+### Executable API
 
-Each app MAY contain the following members.
+Every executable must have an associated Application Definition file which looks like this.
 
-| Key     | Optional | Description
-|:--------|:---------|:-------------
-| name    | False    | Short name, used in the directory template.
-| label   | True    | Nice name, used for presentation such as in the Launcher graphical user interface.
-| args    | True     | A list of arguments passed to application at launch
+```yaml
+# Required header, do not touch.
+schema: mindbender-core:application-1.0
 
-##### `tasks`
+# Name displayed in GUIs
+label: "The Foundry Nuke 10.0"
 
-Each task MAY contain the following members.
+# Name of the created directory, available in the 
+# `template` of the Configuration API
+application_dir: "nuke"
 
-| Key     | Optional | Description
-|:--------|:---------|:-------------
-| name    | False    | Short name, used in the directory template.
-| label   | True     | Nice name, used for presentation such as in the Launcher graphical user interface.
+# Name of the executable on the local computer.
+# This name must be available via the users `PATH`.
+# That is, the user must be able to type this into
+# the terminal to launch said application.
+executable: "Nuke10.0"
+```
 
-##### `templates`
+The following options are available.
 
-The template defines the contained directory layout of each ASSET.
+```yaml
+schema: mindbender-core:application-1.0
+
+label: "Autodesk Maya 2016x64"
+description: ""
+application_dir: "maya"
+executable: "maya2016"
+
+# These directories will be created under the
+# given application directory
+default_dirs:
+    - scenes
+    - data
+    - renderData/shaders
+    - images
+
+# The environment variables overrides any previously set
+# variables from the parent process.
+environment:
+
+    # Shorten time to boot
+    MAYA_DISABLE_CIP: "Yes"
+    MAYA_DISABLE_CER: "Yes"
+
+    # Disable the AdSSO process
+    MAYA_DISABLE_CLIC_IPM: "Yes"
+
+    PYTHONPATH: [
+        "{PYBLISH_MAYA}/pyblish_maya/pythonpath",
+        "{MINDBENDER_CORE}/mindbender/maya/pythonpath",
+        "{PYTHONPATH}",
+    ]
+
+# Arguments passed to the executable on launch
+arguments: ["-proj", "{MINDBENDER_WORKDIR}"]
+
+# Files copied into the application directory on launch
+copy:
+    "{MINDBENDER_CORE}/res/workspace.mel": "workspace.mel"
+```
