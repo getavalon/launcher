@@ -1,0 +1,16 @@
+{
+    "$schema": "http://json-schema.org/schema#",
+
+    "title": "mindbender-core:inventory-1.0",
+    "description": "A project inventory",
+
+    "type": "object",
+
+    "properties": {
+        "schema": {
+            "type": "string"
+        }
+    },
+
+    "additionalProperties": true
+}
