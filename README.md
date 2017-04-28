@@ -36,9 +36,19 @@ schema: mindbender-core:inventory-1.0
 # Available assets
 assets:
   "Bruce":
+
+    # An optional, nicer name.
+    label: "Bruce Wayne"
+
+    # An optional visual grouping.
+    group: Character
+
   "Batman":
+    group: Character
   "Camera":
+    group: Prop
   "Tarantula":
+    group: Prop
 
 # Available shots
 film:
