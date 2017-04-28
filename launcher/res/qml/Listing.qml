@@ -9,9 +9,8 @@ ListView {
     section.delegate: Label {
         text: section
         color: "#888"
-        verticalAlignment: Text.AlignBottom
-        height: 25
-        bottomPadding: 3
+        lineHeight: 1.5
+        verticalAlignment: Text.AlignVCenter
     }
 
     delegate: ItemDelegate {
@@ -33,7 +32,7 @@ ListView {
             }
 
             Text {
-                text: model.label
+                text: model.label || model.name
                 color: "#eee"
                 font: control.font
                 Layout.fillHeight: true
@@ -50,6 +49,6 @@ ListView {
         }
 
         width: listView.width - listView.leftMargin - listView.rightMargin
-        onClicked: controller.push(model.label)
+        onClicked: controller.push(model.name)
     }
 }

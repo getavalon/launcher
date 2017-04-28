@@ -64,27 +64,29 @@ ApplicationWindow {
         id: browserContainer
         border.color: "#222"
         color: "#333"
+        clip: true
 
         anchors {
             top: parent.top
             bottom: terminalContainer.top
             right: attributeEditorContainer.left
             left: parent.left
+            margins: 5
         }
 
         Listing {
             id: browserView
-            clip: true
             model: controller.model
             anchors.fill: parent
             anchors.margins: 2
+            anchors.topMargin: 5
         }
     }
 
     Rectangle {
         id: attributeEditorContainer
-
         color: "#333"
+        visible: width > 0
         border.color: "#222"
 
         anchors {
@@ -94,10 +96,7 @@ ApplicationWindow {
         }
 
         width: attributeEditorButton.checked ? parent.width / 2 : 0
-
         Behavior on width { SmoothedAnimation { velocity: 2000 } }
-
-        visible: width > 0
 
         Attributes {
             clip: true
