@@ -110,10 +110,17 @@ class Controller(QtCore.QObject):
         if application_definition is None:
             return io.log("%s not found." % name, io.ERROR)
 
-        with open(application_definition) as f:
-            app = yaml.load(f)
-            io.log(json.dumps(app, indent=4), io.DEBUG)
-            schema.validate(app, "application")
+        try:
+            with open(application_definition) as f:
+                app = yaml.load(f)
+                io.log(json.dumps(app, indent=4), io.DEBUG)
+                schema.validate(app, "application")
+        except (schema.ValidationError,
+                schema.SchemaError,
+                yaml.scanner.ScannerError) as e:
+            io.log("Application definition was invalid.", io.ERROR)
+            io.log("%s" % e, io.ERROR)
+            return io.log(" - %s" % application_definition, io.ERROR)
 
         executable = lib.which(app["executable"])
 
