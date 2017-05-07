@@ -52,7 +52,7 @@ def which_app(app):
     """
 
     for path in os.environ["PATH"].split(os.pathsep):
-        fname = app + ".yml"
+        fname = app + ".toml"
         abspath = os.path.join(path.strip('"'), fname)
 
         if os.path.isfile(abspath):

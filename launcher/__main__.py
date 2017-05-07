@@ -4,8 +4,6 @@ import os
 import sys
 import argparse
 
-from . import app
-
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 
@@ -43,9 +41,15 @@ def cli():
     # Set PYTHONPATH
     os.environ["PYTHONPATH"] = os.pathsep.join(
         os.environ.get("PYTHONPATH", "").split(os.pathsep) +
-        list(os.getenv(dependency) for dependency in dependencies)
+        [os.getenv(dependency) for dependency in dependencies]
     )
 
+    # Expose dependencies to Launcher
+    sys.path[:] = [
+        os.getenv(dep) for dep in dependencies
+    ] + sys.path
+
+    from . import app
     return app.main(**kwargs.__dict__)
 
 

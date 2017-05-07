@@ -12,42 +12,92 @@ ApplicationWindow {
     height: 500
     color: "#444"
 
-    header: MyToolBar {
-        RowLayout {
-            anchors.fill: parent
+    header: ColumnLayout {
+        Rectangle {
+            color: "#333"
+            height: 50
+            Layout.fillWidth: true
+            visible: false
 
-            Breadcrumbs {
-                Layout.fillHeight: true
-                Layout.fillWidth: true
-                model: controller.breadcrumbs
+            Rectangle {
+                width: 30
+                height: width
+                x: 10
+
+                anchors.verticalCenter: parent.verticalCenter
+
+                color: "steelblue"
             }
 
-            /** Toggle Terminal on/off
-             */
-            MyButton {
-                id: terminalButton
-                icon: "terminal"
-                checkable: true
-                implicitHeight: parent.height
-                implicitWidth: parent.height
-                Layout.alignment: Qt.AlignRight
+            ColumnLayout {
+                spacing: 2
+                anchors {
+                    left: parent.left
+                    top: parent.top
+                    margins: 7
+                    leftMargin: 50
+                }
+
+                Label {
+                    text: "Launcher"
+                    color: "#eee"
+                    font.pixelSize: 13
+                    font.bold: true
+                }
+
+                Label {
+                    text: "Specify the context within which to run software."
+                    color: "#eee"
+                    font.pixelSize: 10
+                }
             }
 
-            /** Toggle Attribute Editor on/off
-             */
-            MyButton {
-                id: attributeEditorButton
-                implicitWidth: parent.height
-                implicitHeight: parent.height
-                checkable: true
-                icon: "adjust"
-                Layout.alignment: Qt.AlignRight
+        }
+
+        MyToolBar {
+            Layout.fillHeight: true
+            Layout.fillWidth: true
+            Layout.topMargin: 5
+            Layout.leftMargin: 5
+            Layout.rightMargin: 5
+
+            inset: true
+
+            RowLayout {
+                anchors.fill: parent
+
+                Breadcrumbs {
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    model: controller.breadcrumbs
+                }
+
+                /** Toggle Terminal on/off
+                 */
+                MyButton {
+                    id: terminalButton
+                    icon: "terminal"
+                    checkable: true
+                    implicitHeight: parent.height
+                    implicitWidth: parent.height
+                    Layout.alignment: Qt.AlignRight
+                }
+
+                /** Toggle Attribute Editor on/off
+                 */
+                MyButton {
+                    id: attributeEditorButton
+                    implicitWidth: parent.height
+                    implicitHeight: parent.height
+                    checkable: true
+                    icon: "adjust"
+                    Layout.alignment: Qt.AlignRight
+                }
             }
         }
     }
 
     footer: MyToolBar { }
-
 
     /** Main Layout
      *  ____________________
@@ -94,6 +144,7 @@ ApplicationWindow {
             top: parent.top
             bottom: terminalContainer.top
             right: parent.right
+            margins: 5
         }
 
         width: attributeEditorButton.checked ? parent.width / 2 : 0
@@ -116,6 +167,7 @@ ApplicationWindow {
             left: parent.left
             right: parent.right
             bottom: parent.bottom
+            margins: 5
         }
 
         Behavior on height { SmoothedAnimation { velocity: 2000 } }

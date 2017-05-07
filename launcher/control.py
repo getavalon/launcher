@@ -8,8 +8,9 @@ import traceback
 
 from PyQt5 import QtCore
 
-from . import lib, io, schema, model
-from .vendor import yaml
+from mindbender import schema
+from mindbender.vendor import toml
+from . import lib, io, model
 
 Signal = QtCore.pyqtSignal
 Slot = QtCore.pyqtSlot
@@ -22,41 +23,6 @@ DEFAULTS = {
         "asset": "plus-square",
         "task": "male",
         "app": "file",
-    },
-    "config": {
-        "schema": "mindbender-core:config-1.0",
-        "apps": [
-            {
-                "name": "python",
-                "args": [
-                    "-u", "-c",
-                    "print('Default Python does nothing')"
-                ]
-            }
-        ],
-        "tasks": [{"name": "default"}],
-        "template": {
-            "publish": "{projectpath}/publish",
-            "work": "{projectpath}/work"
-        }
-    },
-    "inventory": {
-        "schema": "mindbender-core:inventory-1.0",
-
-        "assets": {
-            "Default asset 1": None,
-            "Default asset 2": None,
-        },
-        "film": {
-            "Default shot 1": {
-                "edit_in": 1000,
-                "edit_out": 1143
-            },
-            "Default shot 2": {
-                "edit_in": 1000,
-                "edit_out": 1081
-            },
-        }
     }
 }
 
@@ -84,6 +50,7 @@ class Controller(QtCore.QObject):
         self._model = model.Model(
             items=[],
             roles=[
+                "_id",
                 "name",
                 "label",
                 "icon",
@@ -112,12 +79,12 @@ class Controller(QtCore.QObject):
 
         try:
             with open(application_definition) as f:
-                app = yaml.load(f)
+                app = toml.load(f)
                 io.log(json.dumps(app, indent=4), io.DEBUG)
                 schema.validate(app, "application")
         except (schema.ValidationError,
                 schema.SchemaError,
-                yaml.scanner.ScannerError) as e:
+                toml.TomlDecodeError) as e:
             io.log("Application definition was invalid.", io.ERROR)
             io.log("%s" % e, io.ERROR)
             return io.log(" - %s" % application_definition, io.ERROR)
@@ -128,6 +95,7 @@ class Controller(QtCore.QObject):
             return io.log("%s could not be found." % executable, io.ERROR)
 
         frame = self.current_frame()
+        frame["environment"]["root"] = self._root
 
         template_private = frame["config"]["template"]["work"]
 
@@ -141,20 +109,31 @@ class Controller(QtCore.QObject):
         except KeyError as e:
             return io.log("Missing environment variable: %s" % e, io.ERROR)
 
+        # TODO(marcus): These shouldn't be necessary
+        # once the templates are used.
+        # ----------------------------------------------------------------------
         template_rootpath = template_private.split("{silo}")[0]
         template_assetpath = template_private.split("{asset}")[0] + "{asset}"
         template_taskpath = template_private.split("{task}")[0] + "{task}"
 
-        rootpath = template_rootpath.format(**frame["environment"])
+        silospath = template_rootpath.format(**frame["environment"])
         assetpath = template_assetpath.format(**frame["environment"])
         taskpath = template_taskpath.format(**frame["environment"])
 
-        frame["environment"]["root"] = rootpath.replace("/", os.sep)
-        frame["environment"]["assetpath"] = assetpath.replace("/", os.sep)
-        frame["environment"]["taskpath"] = taskpath.replace("/", os.sep)
-        frame["environment"]["workdir"] = workdir.replace("/", os.sep)
+        frame["environment"]["silospath"] = silospath
+        frame["environment"]["assetpath"] = assetpath
+        frame["environment"]["taskpath"] = taskpath
+        frame["environment"]["workdir"] = workdir
+        # ----------------------------------------------------------------------
 
-        environment = dict(os.environ, **{
+        # TODO(marcus): These will eventually replace the name-based
+        # references currently stored in the environment.
+        frame["environment"]["_project"] = frame["project"]
+        frame["environment"]["_asset"] = frame["asset"]
+
+        environment = os.environ.copy()
+
+        environment = dict(environment, **{
             "MINDBENDER_" + key.upper(): str(value)
             for key, value in frame["environment"].items()
         })
@@ -297,17 +276,18 @@ class Controller(QtCore.QObject):
         header = "Root"
 
         self._model.push([
-            {
-                "name": project,
+            dict({
                 "icon": DEFAULTS["icon"]["project"]
-            } for project in dirs(self._root)
+            }, **project)
+
+            for project in io.find({"type": "project"})
         ])
 
         frame = {
             "environment": {
                 # Indicate that the launched application was
                 # launched using the launcher.
-                "with_launcher": "True"
+                "projectversion": "2.0",
             },
         }
         self._frames[:] = [frame]
@@ -315,8 +295,9 @@ class Controller(QtCore.QObject):
         self.pushed.emit(header)
         self.navigated.emit()
 
-    @Slot(str)
-    def push(self, name):
+    @Slot(QtCore.QModelIndex)
+    def push(self, index):
+        name = model.data(index, "name")
         self.breadcrumbs.append(name)
 
         level = len(self.breadcrumbs)
@@ -328,13 +309,18 @@ class Controller(QtCore.QObject):
             5: self.on_app_changed,
         }[level]
 
-        handler(name)
+        handler(index)
         self.navigated.emit()
 
     @Slot()
     def pop(self):
         self._frames.pop()
         self._model.pop()
+
+        if not self.breadcrumbs:
+            self.popped.emit()
+            self.navigated.emit()
+            return self.init()
 
         try:
             self.breadcrumbs.pop()
@@ -344,80 +330,58 @@ class Controller(QtCore.QObject):
             self.popped.emit()
             self.navigated.emit()
 
-    def on_project_changed(self, name):
+    def on_project_changed(self, index):
+        name = model.data(index, "name")
         path = os.path.join(self._root, name)
-        configpath = os.path.join(path, ".config.yml")
-        inventorypath = os.path.join(path, ".inventory.yml")
-
-        try:
-            with open(configpath) as f:
-                config = yaml.load(f)
-                schema.validate(config, "config")
-        except IOError:
-            config = DEFAULTS["config"]
-        except (schema.ValidationError,
-                schema.SchemaError,
-                yaml.scanner.ScannerError):
-            self._breadcrumbs.pop()
-            return io.log("ERROR: %s has been misconfigured, "
-                          "speak to your supervisor."
-                          % configpath, io.ERROR)
-
-        try:
-            with open(inventorypath) as f:
-                inventory = yaml.load(f)
-                schema.validate(config, "inventory")
-        except IOError:
-            inventory = DEFAULTS["inventory"]
-        except (schema.ValidationError,
-                schema.SchemaError,
-                yaml.scanner.ScannerError):
-            self._breadcrumbs.pop()
-            return io.log("ERROR: %s has been misconfigured, "
-                          "speak to your supervisor."
-                          % inventorypath, io.ERROR)
 
         frame = self.current_frame()
-        frame["config"] = config
-        frame["inventory"] = inventory
+        document = io.find_one({"_id": model.data(index, "_id")})
+
+        assert document is not None
+
+        frame["config"] = {
+            "apps": document.get("apps", []),
+            "tasks": document.get("tasks", []),
+            "template": document.get("template", {})
+        }
 
         self._model.push([
-            {
-                "name": key,
-                "icon": DEFAULTS["icon"]["silo"]
-            }
-            for key in sorted(inventory)
-            if key != "schema"
+            dict({
+                "name": silo,
+                "icon": DEFAULTS["icon"]["silo"],
+            })
+            for silo in ["assets", "film"]
         ])
 
+        frame["project"] = document["_id"]
         frame["environment"]["project"] = name
         frame["environment"]["projectpath"] = path
-
-        # Install optional metadata
-        # TODO(marcus): Once ls() has been adapted to use the inventory,
-        # data will be fetched not from the environment, but from there.
-        frame["environment"].update(config.get("metadata", {}))
 
         self._frames.append(frame)
         self.pushed.emit(name)
 
-    def on_silo_changed(self, name):
+    def on_silo_changed(self, index):
+        name = model.data(index, "name")
         frame = self.current_frame()
 
         self._model.push([
             dict({
-                "name": key,
+                "id": str(doc["_id"]),
                 "icon": DEFAULTS["icon"]["asset"],
-            }, **(value or {}))
-            for key, value in sorted(
-                frame["inventory"][name].items(),
+            }, **(doc or {}))
+            for doc in sorted(
+                io.find({
+                    "type": "asset",
+                    "parent": frame["project"],
+                    "silo": name
+                }),
 
                 # Hard-sort by group
                 # TODO(marcus): Sorting should really happen in
                 # the model, via e.g. a Proxy.
                 key=lambda item: (
                     # Sort by group
-                    (item[1] or {}).get(
+                    item.get(
                         "group",
 
                         # Put items without a
@@ -425,7 +389,7 @@ class Controller(QtCore.QObject):
                         "0"),
 
                     # Sort inner items by name
-                    item[0]
+                    item["name"]
                 )
             )
         ])
@@ -435,12 +399,31 @@ class Controller(QtCore.QObject):
         self._frames.append(frame)
         self.pushed.emit(name)
 
-    def on_asset_changed(self, name):
+    def on_asset_changed(self, index):
+        name = model.data(index, "name")
         frame = self.current_frame()
+
+        frame["asset"] = model.data(index, "_id")
+        frame["environment"]["asset"] = name
+
+        # TODO(marcus): These are going to be accessible
+        # from database, not from the environment.
+        asset = io.find_one({"_id": frame["asset"]})
+        frame["environment"].update({
+            key: value
+            for key, value in asset.items()
+            if key not in (
+                "_id",
+                "parent",
+                "schema",
+                "silo",
+                "group",
+                "asset",
+            )
+        })
 
         self._model.push([
             dict({
-                "name": task["name"],
                 "icon": DEFAULTS["icon"]["task"]
             }, **task)
             for task in sorted(
@@ -448,15 +431,11 @@ class Controller(QtCore.QObject):
                 key=lambda t: t["name"])
         ])
 
-        silo = frame["environment"]["silo"]
-        metadata = frame["inventory"][silo][name]
-        frame["environment"]["asset"] = name
-        frame["environment"].update((metadata or {}).items())
-
         self._frames.append(frame)
         self.pushed.emit(name)
 
-    def on_task_changed(self, name):
+    def on_task_changed(self, index):
+        name = model.data(index, "name")
 
         frame = self.current_frame()
         self._model.push([
@@ -474,8 +453,9 @@ class Controller(QtCore.QObject):
         self._frames.append(frame)
         self.pushed.emit(name)
 
-    def on_app_changed(self, name):
+    def on_app_changed(self, index):
         """Launch application on clicking it"""
+        name = model.data(index, "name")
         self.launch(name)
         self.breadcrumbs.pop()
 

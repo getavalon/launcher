@@ -46,6 +46,6 @@ ListView {
         }
 
         width: listView.width - listView.leftMargin - listView.rightMargin
-        onClicked: controller.push(model.name)
+        onClicked: controller.push(listView.model.index(index, null))
     }
 }

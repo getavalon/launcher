@@ -26,7 +26,11 @@ class Application(QtGui.QGuiApplication):
         engine.warnings.connect(self.on_warnings)
         engine.addImportPath(QML_IMPORT_DIR)
 
-        io.init()
+        try:
+            io.init()
+        except IOError:
+            # Server refused to connect
+            raise
 
         controller = control.Controller(root, self)
         engine.rootContext().setContextProperty("controller", controller)
@@ -54,10 +58,8 @@ class Application(QtGui.QGuiApplication):
 def main(root, demo=False):
     """Start the Qt-runtime and show the window"""
 
-    # Load config
     root = os.path.realpath(root)
 
     print("Starting mindbender-launcher")
-    # print("Passing config: %s" % config)
     app = Application(root, APP_PATH)
     return app.exec_()

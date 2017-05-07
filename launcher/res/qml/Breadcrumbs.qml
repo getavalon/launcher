@@ -10,7 +10,21 @@ Item {
     Row {
         anchors.fill: parent
 
+        ToolButton {
+            contentItem: AwesomeIcon {
+                name: "refresh"
+                size: 12
+            }
+
+            visible: repeater.count == 0
+
+            height: parent.height
+            width: parent.height
+            onClicked: controller.pop()
+        }
+
         Repeater {
+            id: repeater
             model: root.model
             delegate: ToolButton {
                 id: control

@@ -4,16 +4,18 @@ import QtQuick.Controls 2.1
 ToolBar {
     height: 30
 
+    property bool inset: false
+
     background: Rectangle {
-        color: "transparent"
-        border.color: "#222"
+        color: inset ? "#333" : "transparent"
+        border.color: inset ? "#555" : "#222"
         anchors.margins: 2
 
         Rectangle {
             anchors.fill: parent
             anchors.margins: 1
             color: "transparent"
-            border.color: "#555"
+            border.color: inset ? "#222" : "#555"
         }
     }
 }
