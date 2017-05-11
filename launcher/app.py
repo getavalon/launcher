@@ -5,10 +5,11 @@ import os
 import sys
 
 # Dependencies
+from mindbender import io
 from PyQt5 import QtCore, QtGui, QtQml
 
 # Local libraries
-from . import control, io, lib
+from . import control, terminal, lib
 
 QML_IMPORT_DIR = lib.resource("qml")
 APP_PATH = lib.resource("qml", "main.qml")
@@ -27,14 +28,16 @@ class Application(QtGui.QGuiApplication):
         engine.addImportPath(QML_IMPORT_DIR)
 
         try:
-            io.init()
+            io.install()
+            terminal.init()
+
         except IOError:
             # Server refused to connect
             raise
 
         controller = control.Controller(root, self)
         engine.rootContext().setContextProperty("controller", controller)
-        engine.rootContext().setContextProperty("terminal", io.terminal)
+        engine.rootContext().setContextProperty("terminal", terminal.model)
 
         self.engine = engine
         self.controller = controller

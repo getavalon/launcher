@@ -8,9 +8,9 @@ import traceback
 
 from PyQt5 import QtCore
 
-from mindbender import schema
+from mindbender import io, schema
 from mindbender.vendor import toml
-from . import lib, io, model
+from . import lib, model, terminal
 
 Signal = QtCore.pyqtSignal
 Slot = QtCore.pyqtSlot
@@ -75,24 +75,26 @@ class Controller(QtCore.QObject):
         application_definition = lib.which_app(name)
 
         if application_definition is None:
-            return io.log("%s not found." % name, io.ERROR)
+            return terminal.log("%s not found." % name, terminal.ERROR)
 
         try:
             with open(application_definition) as f:
                 app = toml.load(f)
-                io.log(json.dumps(app, indent=4), io.DEBUG)
+                terminal.log(json.dumps(app, indent=4), terminal.DEBUG)
                 schema.validate(app, "application")
         except (schema.ValidationError,
                 schema.SchemaError,
                 toml.TomlDecodeError) as e:
-            io.log("Application definition was invalid.", io.ERROR)
-            io.log("%s" % e, io.ERROR)
-            return io.log(" - %s" % application_definition, io.ERROR)
+            terminal.log("Application definition was invalid.", terminal.ERROR)
+            terminal.log("%s" % e, terminal.ERROR)
+            return terminal.log(
+                " - %s" % application_definition, terminal.ERROR)
 
         executable = lib.which(app["executable"])
 
         if executable is None:
-            return io.log("%s could not be found." % executable, io.ERROR)
+            return terminal.log(
+                "%s could not be found." % executable, terminal.ERROR)
 
         frame = self.current_frame()
         frame["environment"]["root"] = self._root
@@ -107,7 +109,8 @@ class Controller(QtCore.QObject):
             ))
 
         except KeyError as e:
-            return io.log("Missing environment variable: %s" % e, io.ERROR)
+            return terminal.log(
+                "Missing environment variable: %s" % e, terminal.ERROR)
 
         # TODO(marcus): These shouldn't be necessary
         # once the templates are used.
@@ -141,11 +144,15 @@ class Controller(QtCore.QObject):
         try:
             app = lib.dict_format(app, **environment)
         except KeyError as e:
-            io.log("Application error: variable %s "
-                   "not found in application .json" % e, io.ERROR)
-            io.log(json.dumps(environment, indent=4, sort_keys=True), io.ERROR)
-            return io.log("This is typically a bug in the pipeline, "
-                          "ask your developer.", io.ERROR)
+            terminal.log(
+                "Application error: variable %s "
+                "not found in application .json" % e, terminal.ERROR)
+            terminal.log(
+                json.dumps(environment, indent=4, sort_keys=True),
+                terminal.ERROR)
+            return terminal.log(
+                "This is typically a bug in the pipeline, "
+                "ask your developer.", terminal.ERROR)
 
         for key, value in app.get("environment", {}).items():
             if isinstance(value, list):
@@ -156,27 +163,36 @@ class Controller(QtCore.QObject):
                 environment[key] = value
 
             else:
-                io.log("Unsupported environment variable in %s"
-                       % application_definition, io.ERROR)
+                terminal.log(
+                    "Unsupported environment variable in %s"
+                    % application_definition, terminal.ERROR)
 
         try:
             os.makedirs(workdir)
-            io.log("Creating working directory '%s'" % workdir, io.INFO)
+            terminal.log(
+                "Creating working directory '%s'"
+                % workdir, terminal.INFO)
 
         except OSError as e:
 
             # An already existing working directory is fine.
             if e.errno == errno.EEXIST:
-                io.log("Existing working directory found.", io.INFO)
+                terminal.log(
+                    "Existing working directory found.",
+                    terminal.INFO)
 
             else:
-                io.log("Could not create working directory.", io.ERROR)
-                return io.log(traceback.format_exc(), io.ERROR)
+                terminal.log(
+                    "Could not create working directory.",
+                    terminal.ERROR)
+                return terminal.log(
+                    traceback.format_exc(),
+                    terminal.ERROR)
 
         else:
-            io.log("Creating default directories..", io.DEBUG)
+            terminal.log("Creating default directories..", terminal.DEBUG)
             for dirname in app.get("default_dirs", []):
-                io.log(" - %s" % dirname, io.DEBUG)
+                terminal.log(" - %s" % dirname, terminal.DEBUG)
                 os.makedirs(os.path.join(workdir, dirname))
 
         # Perform application copy
@@ -184,11 +200,13 @@ class Controller(QtCore.QObject):
             dst = os.path.join(workdir, dst)
 
             try:
-                io.log("Copying %s -> %s" % (src, dst))
+                terminal.log("Copying %s -> %s" % (src, dst))
                 shutil.copy(src, dst)
             except OSError as e:
-                io.log("Could not copy application file: %s" % e, io.ERROR)
-                io.log(" - %s -> %s" % (src, dst), io.ERROR)
+                terminal.log(
+                    "Could not copy application file: %s" % e, terminal.ERROR)
+                terminal.log(
+                    " - %s -> %s" % (src, dst), terminal.ERROR)
 
         item = next(
             app for app in frame["config"]["apps"]
@@ -203,18 +221,20 @@ class Controller(QtCore.QObject):
                 environment=environment,
             )
         except ValueError:
-            return io.log(traceback.format_exc())
+            return terminal.log(traceback.format_exc())
 
         except OSError:
-            return io.log(traceback.format_exc())
+            return terminal.log(traceback.format_exc())
 
         except Exception as e:
-            io.log("Something unexpected happened..")
-            return io.log(traceback.format_exc())
+            terminal.log("Something unexpected happened..")
+            return terminal.log(traceback.format_exc())
 
         else:
-            io.log(json.dumps(environment, indent=4, sort_keys=True), io.DEBUG)
-            io.log("Launching {executable} {args}".format(
+            terminal.log(
+                json.dumps(environment, indent=4, sort_keys=True),
+                terminal.DEBUG)
+            terminal.log("Launching {executable} {args}".format(
                 executable=executable,
                 args=" ".join(args))
             )
@@ -230,7 +250,7 @@ class Controller(QtCore.QObject):
                 self.messaged.emit("%s killed." % process["app"]["executable"])
 
         thread = Thread()
-        thread.messaged.connect(lambda line: io.log(line, io.INFO))
+        thread.messaged.connect(lambda line: terminal.log(line, terminal.INFO))
 
         process.update({
             "app": app,
@@ -277,9 +297,10 @@ class Controller(QtCore.QObject):
 
         self._model.push([
             dict({
-                "icon": DEFAULTS["icon"]["project"]
-            }, **project)
-
+                "_id": project["_id"],
+                "icon": DEFAULTS["icon"]["project"],
+                "name": project["name"],
+            }, **project["data"])
             for project in io.find({"type": "project"})
         ])
 
@@ -339,23 +360,24 @@ class Controller(QtCore.QObject):
 
         assert document is not None
 
-        frame["config"] = {
-            "apps": document.get("apps", []),
-            "tasks": document.get("tasks", []),
-            "template": document.get("template", {})
-        }
+        frame["config"] = document["config"]
 
+        silos = io.distinct("silo", {"parent": document["_id"]})
         self._model.push([
             dict({
                 "name": silo,
                 "icon": DEFAULTS["icon"]["silo"],
             })
-            for silo in ["assets", "film"]
+            for silo in silos
         ])
 
         frame["project"] = document["_id"]
         frame["environment"]["project"] = name
         frame["environment"]["projectpath"] = path
+        frame["environment"].update({
+            key: str(value)
+            for key, value in document["data"].items()
+        })
 
         self._frames.append(frame)
         self.pushed.emit(name)
@@ -366,9 +388,10 @@ class Controller(QtCore.QObject):
 
         self._model.push([
             dict({
-                "id": str(doc["_id"]),
+                "_id": doc["_id"],
+                "name": doc["name"],
                 "icon": DEFAULTS["icon"]["asset"],
-            }, **(doc or {}))
+            }, **doc["data"])
             for doc in sorted(
                 io.find({
                     "type": "asset",
@@ -381,7 +404,7 @@ class Controller(QtCore.QObject):
                 # the model, via e.g. a Proxy.
                 key=lambda item: (
                     # Sort by group
-                    item.get(
+                    item["data"].get(
                         "group",
 
                         # Put items without a
@@ -409,18 +432,7 @@ class Controller(QtCore.QObject):
         # TODO(marcus): These are going to be accessible
         # from database, not from the environment.
         asset = io.find_one({"_id": frame["asset"]})
-        frame["environment"].update({
-            key: value
-            for key, value in asset.items()
-            if key not in (
-                "_id",
-                "parent",
-                "schema",
-                "silo",
-                "group",
-                "asset",
-            )
-        })
+        frame["environment"].update(asset["data"])
 
         self._model.push([
             dict({
@@ -440,7 +452,6 @@ class Controller(QtCore.QObject):
         frame = self.current_frame()
         self._model.push([
             dict({
-                "name": app["name"],
                 "icon": DEFAULTS["icon"]["app"]
             }, **app)
             for app in sorted(
