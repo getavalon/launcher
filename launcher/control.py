@@ -344,6 +344,7 @@ class Controller(QtCore.QObject):
                 "name": project["name"],
             }, **project["data"])
             for project in io.projects()
+            if project.get("active", True)
         ])
 
         frame = {
@@ -360,20 +361,19 @@ class Controller(QtCore.QObject):
 
     def on_project_changed(self, index):
         name = model.data(index, "name")
-        path = os.path.join(self._root, name)
 
         # Establish a connection to the project database
         self.log("Connecting to %s" % name, level=INFO)
         io.activate_project(name)
 
         frame = self.current_frame()
-        document = io.find_one({"_id": model.data(index, "_id")})
+        project = io.find_one({"type": "project"})
 
-        assert document is not None
+        assert project is not None, "This is a bug"
 
-        frame["config"] = document["config"]
+        frame["config"] = project["config"]
 
-        silos = io.distinct("silo", {"parent": document["_id"]})
+        silos = io.distinct("silo")
         self._model.push([
             dict({
                 "name": silo,
@@ -382,12 +382,11 @@ class Controller(QtCore.QObject):
             for silo in silos
         ])
 
-        frame["project"] = document["_id"]
+        frame["project"] = project["_id"]
         frame["environment"]["project"] = name
-        frame["environment"]["projectpath"] = path
         frame["environment"].update({
             key: str(value)
-            for key, value in document["data"].items()
+            for key, value in project["data"].items()
         })
 
         self._frames.append(frame)
