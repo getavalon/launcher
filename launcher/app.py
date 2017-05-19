@@ -29,11 +29,10 @@ class Application(QtGui.QGuiApplication):
 
         try:
             io.install()
-            terminal.init()
-
         except IOError:
-            # Server refused to connect
-            raise
+            raise  # Server refused to connect
+
+        terminal.init()
 
         controller = control.Controller(root, self)
         engine.rootContext().setContextProperty("controller", controller)

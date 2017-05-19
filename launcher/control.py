@@ -26,6 +26,13 @@ DEFAULTS = {
     }
 }
 
+# Logging levels
+DEBUG = 1 << 0
+INFO = 1 << 1
+WARNING = 1 << 2
+ERROR = 1 << 3
+CRITICAL = 1 << 4
+
 
 class Controller(QtCore.QObject):
     # An item was clicked, causing an environment change
@@ -292,30 +299,6 @@ class Controller(QtCore.QObject):
     def model(self):
         return self._model
 
-    def init(self):
-        header = "Root"
-
-        self._model.push([
-            dict({
-                "_id": project["_id"],
-                "icon": DEFAULTS["icon"]["project"],
-                "name": project["name"],
-            }, **project["data"])
-            for project in io.find({"type": "project"})
-        ])
-
-        frame = {
-            "environment": {
-                # Indicate that the launched application was
-                # launched using the launcher.
-                "projectversion": "2.0",
-            },
-        }
-        self._frames[:] = [frame]
-
-        self.pushed.emit(header)
-        self.navigated.emit()
-
     @Slot(QtCore.QModelIndex)
     def push(self, index):
         name = model.data(index, "name")
@@ -351,9 +334,37 @@ class Controller(QtCore.QObject):
             self.popped.emit()
             self.navigated.emit()
 
+    def init(self):
+        header = "Root"
+
+        self._model.push([
+            dict({
+                "_id": project["_id"],
+                "icon": DEFAULTS["icon"]["project"],
+                "name": project["name"],
+            }, **project["data"])
+            for project in io.projects()
+        ])
+
+        frame = {
+            "environment": {
+                # Indicate that the launched application was
+                # launched using the launcher.
+                "projectversion": "2.0",
+            },
+        }
+        self._frames[:] = [frame]
+
+        self.pushed.emit(header)
+        self.navigated.emit()
+
     def on_project_changed(self, index):
         name = model.data(index, "name")
         path = os.path.join(self._root, name)
+
+        # Establish a connection to the project database
+        self.log("Connecting to %s" % name, level=INFO)
+        io.activate_project(name)
 
         frame = self.current_frame()
         document = io.find_one({"_id": model.data(index, "_id")})
@@ -469,6 +480,9 @@ class Controller(QtCore.QObject):
         name = model.data(index, "name")
         self.launch(name)
         self.breadcrumbs.pop()
+
+    def log(self, message, level=DEBUG):
+        print(message)
 
 
 def dirs(root):
