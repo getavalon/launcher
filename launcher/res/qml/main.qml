@@ -5,7 +5,7 @@ import QtQuick.Layouts 1.3
 
 ApplicationWindow {
     id: window
-    title: "Mindbender Launcher"
+    title: "Avalon Launcher"
 
     visible: true
     width: 500

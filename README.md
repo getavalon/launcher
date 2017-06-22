@@ -1,4 +1,4 @@
-### Mindbender Launcher
+### Avalon Launcher
 
 The Launcher provides an interface towards the file-system and environment.
 
@@ -31,7 +31,7 @@ The inventory contains all ASSETs of a project, including metadata.
 **.inventory.yml**
 
 ```yaml
-schema: mindbender-core:inventory-1.0
+schema: avalon-core:inventory-1.0
 
 # Available assets
 assets:
@@ -55,7 +55,7 @@ film:
   "1000":
 
     # Optional metadata per shot, available as environment
-    # variables prefixed `MINDBENDER_`, e.g. `MINDBENDER_EDIT_IN`
+    # variables prefixed `AVALON_`, e.g. `AVALON_EDIT_IN`
     edit_in: 1000
     edit_out: 1143
 
@@ -79,10 +79,10 @@ The project configuration contains the applications and tasks available within a
 **.config.yml**
 
 ```yaml
-schema: mindbender-core:config-1.0
+schema: avalon-core:config-1.0
 
 # Project metadata, available as environment
-# variables, prefixed `MINDBENDER_`
+# variables, prefixed `AVALON_`
 metadata:
     fps: 25
     resolution_width: 1920
@@ -124,7 +124,7 @@ Every executable must have an associated Application Definition file which looks
 
 ```yaml
 # Required header, do not touch.
-schema: mindbender-core:application-1.0
+schema: avalon-core:application-1.0
 
 # Name displayed in GUIs
 label: "The Foundry Nuke 10.0"
@@ -143,7 +143,7 @@ executable: "Nuke10.0"
 The following options are available.
 
 ```yaml
-schema: mindbender-core:application-1.0
+schema: avalon-core:application-1.0
 
 label: "Autodesk Maya 2016x64"
 description: ""
@@ -171,14 +171,14 @@ environment:
 
     PYTHONPATH: [
         "{PYBLISH_MAYA}/pyblish_maya/pythonpath",
-        "{MINDBENDER_CORE}/mindbender/maya/pythonpath",
+        "{AVALON_CORE}/avalon/maya/pythonpath",
         "{PYTHONPATH}",
     ]
 
 # Arguments passed to the executable on launch
-arguments: ["-proj", "{MINDBENDER_WORKDIR}"]
+arguments: ["-proj", "{AVALON_WORKDIR}"]
 
 # Files copied into the application directory on launch
 copy:
-    "{MINDBENDER_CORE}/res/workspace.mel": "workspace.mel"
+    "{AVALON_CORE}/res/workspace.mel": "workspace.mel"
 ```

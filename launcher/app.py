@@ -5,7 +5,7 @@ import os
 import sys
 
 # Dependencies
-from mindbender import io
+from avalon import io
 from PyQt5 import QtCore, QtGui, QtQml
 
 # Local libraries
@@ -62,6 +62,6 @@ def main(root, demo=False):
 
     root = os.path.realpath(root)
 
-    print("Starting mindbender-launcher")
+    print("Starting avalon-launcher")
     app = Application(root, APP_PATH)
     return app.exec_()

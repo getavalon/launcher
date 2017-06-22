@@ -13,7 +13,7 @@ def setup():
     self.root = tempfile.mkdtemp()
 
     self.config = {
-        "schema": "mindbender-core:config-1.0",
+        "schema": "avalon-core:config-1.0",
         "apps": [
             {
                 "name": "maya2016"
@@ -40,7 +40,7 @@ def setup():
     }
 
     self.inventory = {
-        "schema": "mindbender-core:inventory-1.0",
+        "schema": "avalon-core:inventory-1.0",
 
         "assets": {
             "Batman": None,
@@ -62,7 +62,7 @@ def setup():
     }
 
     self.application = {
-        "schema": "mindbender-core:application-1.0",
+        "schema": "avalon-core:application-1.0",
         "label": "Autodesk Maya 2016x64",
         "description": "",
         "application_dir": "maya",
@@ -75,17 +75,17 @@ def setup():
             "MAYA_DISABLE_CLIC_IPM": "Yes",
             "PYTHONPATH": [
                 "{PYBLISH_MAYA}/pyblish_maya/pythonpath",
-                "{MINDBENDER_CORE}/mindbender/maya/pythonpath",
+                "{AVALON_CORE}/avalon/maya/pythonpath",
                 "{PYTHONPATH}"
             ]
         },
         "arguments": [
             "-proj",
-            "{MINDBENDER_WORKDIR}"
+            "{AVALON_WORKDIR}"
         ],
         "copy": {
-            "{MINDBENDER_CORE}/res/workspace.mel":
-                "{MINDBENDER_WORKDIR}/workspace.mel"
+            "{AVALON_CORE}/res/workspace.mel":
+                "{AVALON_WORKDIR}/workspace.mel"
         }
     }
 

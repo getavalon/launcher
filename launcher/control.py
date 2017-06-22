@@ -8,8 +8,8 @@ import traceback
 
 from PyQt5 import QtCore
 
-from mindbender import io, schema
-from mindbender.vendor import toml
+from avalon import io, schema
+from avalon.vendor import toml
 from . import lib, model, terminal
 
 Signal = QtCore.pyqtSignal
@@ -144,7 +144,7 @@ class Controller(QtCore.QObject):
         environment = os.environ.copy()
 
         environment = dict(environment, **{
-            "MINDBENDER_" + key.upper(): str(value)
+            "AVALON_" + key.upper(): str(value)
             for key, value in frame["environment"].items()
         })
 

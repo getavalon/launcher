@@ -23,7 +23,7 @@ def cli():
         "PYBLISH_NUKE",
         "PYBLISH_LITE",
         "PYBLISH_QML",
-        "MINDBENDER_CORE"
+        "AVALON_CORE",
     )
 
     for dependency in dependencies:
