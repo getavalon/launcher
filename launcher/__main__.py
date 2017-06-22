@@ -19,10 +19,8 @@ def cli():
     missing = list()
     dependencies = (
         "PYBLISH_BASE",
-        "PYBLISH_MAYA",
-        "PYBLISH_NUKE",
-        "PYBLISH_LITE",
         "PYBLISH_QML",
+        "AVALON_CONFIG",
         "AVALON_CORE",
     )
 
