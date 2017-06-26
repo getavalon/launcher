@@ -348,11 +348,7 @@ class Controller(QtCore.QObject):
         ])
 
         frame = {
-            "environment": {
-                # Indicate that the launched application was
-                # launched using the launcher.
-                "projectversion": "2.0",
-            },
+            "environment": {},
         }
         self._frames[:] = [frame]
 
@@ -385,7 +381,7 @@ class Controller(QtCore.QObject):
         frame["project"] = project["_id"]
         frame["environment"]["project"] = name
         frame["environment"].update({
-            key: str(value)
+            "project_%s" % key: str(value)
             for key, value in project["data"].items()
         })
 
@@ -442,7 +438,10 @@ class Controller(QtCore.QObject):
         # TODO(marcus): These are going to be accessible
         # from database, not from the environment.
         asset = io.find_one({"_id": frame["asset"]})
-        frame["environment"].update(asset["data"])
+        frame["environment"].update({
+            "asset_%s" % key: value
+            for key, value in asset["data"].items()
+        })
 
         self._model.push([
             dict({

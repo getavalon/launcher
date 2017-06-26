@@ -9,18 +9,13 @@ EXIT_FAILURE = 1
 
 
 def cli():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--demo", action="store_true")
-    parser.add_argument("--root", default=os.getcwd())
-
-    kwargs = parser.parse_args()
-
     # External Dependencies
     missing = list()
     dependencies = (
         "PYBLISH_BASE",
         "PYBLISH_QML",
         "AVALON_CONFIG",
+        "AVALON_PROJECTS",
         "AVALON_CORE",
     )
 
@@ -36,6 +31,12 @@ def cli():
 
         return EXIT_FAILURE
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--demo", action="store_true")
+    parser.add_argument("--root", default=os.environ["AVALON_PROJECTS"])
+
+    kwargs = parser.parse_args()
+
     # Set PYTHONPATH
     os.environ["PYTHONPATH"] = os.pathsep.join(
         os.environ.get("PYTHONPATH", "").split(os.pathsep) +
@@ -46,6 +47,12 @@ def cli():
     sys.path[:] = [
         os.getenv(dep) for dep in dependencies
     ] + sys.path
+
+    print("Using core @ '%s'" % os.getenv("AVALON_CORE"))
+    print("Using launcher @ '%s'" % os.getenv("AVALON_LAUNCHER"))
+    print("Using root @ '%s'" % kwargs.root)
+    print("Using config: '%s'" % os.environ.get("AVALON_CONFIG",
+                                                "Set by project"))
 
     from . import app
     return app.main(**kwargs.__dict__)
