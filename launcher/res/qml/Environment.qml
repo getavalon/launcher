@@ -11,7 +11,7 @@ ColumnLayout {
 
     Label {
         Layout.fillWidth: true
-        text: "Environment"
+        text: "Session"
         color: "white"
         lineHeight: 1.5
         font.pointSize: 12
