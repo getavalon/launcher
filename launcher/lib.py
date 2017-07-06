@@ -1,17 +1,14 @@
 import os
 import sys
+import json
 import subprocess
 
+from avalon.vendor import six
 from PyQt5 import QtCore
 
 self = sys.modules[__name__]
 self._path = os.path.dirname(__file__)
 self._current_task = None
-
-try:
-    basestring
-except NameError:
-    basestring = str
 
 
 def resource(*path):
@@ -81,7 +78,7 @@ def dict_format(original, **kwargs):
                 new_dict[key.format(**kwargs)] = dict_format(value, **kwargs)
             elif isinstance(value, list):
                 new_dict[key.format(**kwargs)] = dict_format(value, **kwargs)
-            elif isinstance(value, basestring):
+            elif isinstance(value, six.string_types):
                 new_dict[key.format(**kwargs)] = value.format(**kwargs)
             else:
                 new_dict[key.format(**kwargs)] = value
@@ -95,7 +92,7 @@ def dict_format(original, **kwargs):
                 new_list.append(dict_format(value, **kwargs))
             elif isinstance(value, list):
                 new_list.append(dict_format(value, **kwargs))
-            elif isinstance(value, basestring):
+            elif isinstance(value, six.string_types):
                 new_list.append(value.format(**kwargs))
             else:
                 new_list.append(value)
@@ -148,9 +145,17 @@ def launch(executable, args=None, environment=None):
 
     abspath = executable
 
+    # Protect against unicode, and other unsupported
+    # types amongst environment variables
+    enc = sys.getfilesystemencoding()
+    env = {
+        k.encode(enc): v.encode(enc)
+        for k, v in (environment or os.environ).items()
+    }
+
     kwargs = dict(
         args=[abspath] + args or list(),
-        env=environment or os.environ,
+        env=env,
 
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
