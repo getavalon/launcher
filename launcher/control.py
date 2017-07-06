@@ -82,7 +82,8 @@ class Controller(QtCore.QObject):
         application_definition = lib.which_app(name)
 
         if application_definition is None:
-            return terminal.log("%s not found." % name, terminal.ERROR)
+            return terminal.log("Application Definition for '%s' not found."
+                                % name, terminal.ERROR)
 
         try:
             with open(application_definition) as f:
@@ -101,7 +102,9 @@ class Controller(QtCore.QObject):
 
         if executable is None:
             return terminal.log(
-                "%s could not be found." % executable, terminal.ERROR)
+                "'%s' not found on your PATH\n%s"
+                % (app["executable"], os.getenv("PATH")), terminal.ERROR
+            )
 
         frame = self.current_frame()
         frame["environment"]["root"] = self._root
