@@ -7,7 +7,6 @@ import shutil
 import getpass
 import traceback
 import contextlib
-import StringIO
 
 from PyQt5 import QtCore
 
@@ -15,12 +14,14 @@ from avalon import io, schema
 from avalon.vendor import toml, six
 from . import lib, model, terminal
 
+PY2 = sys.version_info[0] == 2
+
 
 @contextlib.contextmanager
 def stdout():
     old = sys.stdout
 
-    stdout = StringIO.StringIO()
+    stdout = six.StringIO()
     sys.stdout = stdout
 
     try:
@@ -187,9 +188,12 @@ class Controller(QtCore.QObject):
                 environment[key] = os.pathsep.join(value)
 
             elif isinstance(value, six.string_types):
-                # Protect against unicode in the environment
-                encoding = sys.getfilesystemencoding()
-                environment[key] = value.encode(encoding)
+                if PY2:
+                    # Protect against unicode in the environment
+                    encoding = sys.getfilesystemencoding()
+                    environment[key] = value.encode(encoding)
+                else:
+                    environment[key] = value
 
             else:
                 terminal.log(

@@ -48,6 +48,7 @@ def cli():
         os.getenv(dep) for dep in dependencies
     ] + sys.path
 
+    print("Using Python @ '%s'" % sys.executable)
     print("Using core @ '%s'" % os.getenv("AVALON_CORE"))
     print("Using launcher @ '%s'" % os.getenv("AVALON_LAUNCHER"))
     print("Using root @ '%s'" % kwargs.root)
