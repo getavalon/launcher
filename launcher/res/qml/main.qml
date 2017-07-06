@@ -10,6 +10,8 @@ ApplicationWindow {
     visible: true
     width: 500
     height: 500
+    minimumHeight: 300
+    minimumWidth: 300
     color: "#444"
 
     header: ColumnLayout {
@@ -81,6 +83,8 @@ ApplicationWindow {
                     implicitHeight: parent.height
                     implicitWidth: parent.height
                     Layout.alignment: Qt.AlignRight
+
+                    onClicked: terminalTextField.focus = true
                 }
 
                 /** Toggle Attribute Editor on/off
@@ -161,7 +165,7 @@ ApplicationWindow {
     Rectangle {
         id: terminalContainer
 
-        height: terminalButton.checked ? 200 : 0
+        height: terminalButton.checked ? window.height / 2 : 0
 
         anchors {
             left: parent.left
@@ -178,16 +182,49 @@ ApplicationWindow {
         clip: true
         visible: height > 0
 
-        ListView {
-            id: terminalView
+        ColumnLayout {
             anchors.fill: parent
-            model: terminal
-            delegate: Text {
-                text: line
-                color: "#eee"
-                width: ListView.view.width
+
+            ListView {
+                id: terminalView
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.margins: 3
+                ScrollBar.vertical: ScrollBar { }
+                ScrollBar.horizontal: ScrollBar { }
+
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+
+                model: terminal
+                delegate: Text {
+                    text: line
+                    font.family: "consolas"
+                    font.pointSize: 9
+                    color: "#eee"
+                    wrapMode: Text.WordWrap
+                    width: ListView.view.width
+                }
+            }
+
+            TextField {
+                id: terminalTextField
+                Layout.fillWidth: true
+                background: Item {}
+                selectionColor: "#555"
+                height: contentHeight + 2
+                color: "white"
+                cursorVisible: true
+                font.family: "consolas"
+                font.pointSize: 9
+
+                onAccepted: {
+                    controller.command(text)
+                    clear()
+                }
             }
         }
+
     }
 
     /** Respond to changes from controller

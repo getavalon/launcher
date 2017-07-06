@@ -1,16 +1,34 @@
 import os
+import sys
 import json
 import copy
 import errno
 import shutil
 import getpass
 import traceback
+import contextlib
 
 from PyQt5 import QtCore
 
 from avalon import io, schema
-from avalon.vendor import toml
+from avalon.vendor import toml, six
 from . import lib, model, terminal
+
+PY2 = sys.version_info[0] == 2
+
+
+@contextlib.contextmanager
+def stdout():
+    old = sys.stdout
+
+    stdout = six.StringIO()
+    sys.stdout = stdout
+
+    try:
+        yield stdout
+    finally:
+        sys.stdout = old
+
 
 Signal = QtCore.pyqtSignal
 Slot = QtCore.pyqtSlot
@@ -169,13 +187,19 @@ class Controller(QtCore.QObject):
                 # Treat list values as application_definition variables
                 environment[key] = os.pathsep.join(value)
 
-            elif isinstance(value, str):
-                environment[key] = value
+            elif isinstance(value, six.string_types):
+                if PY2:
+                    # Protect against unicode in the environment
+                    encoding = sys.getfilesystemencoding()
+                    environment[key] = value.encode(encoding)
+                else:
+                    environment[key] = value
 
             else:
                 terminal.log(
-                    "Unsupported environment variable in %s"
-                    % application_definition, terminal.ERROR)
+                    "'%s': Unsupported environment variable in %s"
+                    % (value, application_definition), terminal.ERROR)
+                raise TypeError("Unsupported environment variable")
 
         try:
             os.makedirs(workdir)
@@ -302,6 +326,24 @@ class Controller(QtCore.QObject):
     def model(self):
         return self._model
 
+    @Slot(str)
+    def command(self, command):
+        if not command:
+            return
+
+        output = command + "\n"
+
+        with stdout() as out:
+            try:
+                exec(command, globals())
+            except Exception:
+                output += traceback.format_exc()
+            else:
+                output += out.getvalue()
+
+        if output:
+            terminal.log(output.rstrip())
+
     @Slot(QtCore.QModelIndex)
     def push(self, index):
         name = model.data(index, "name")
@@ -338,6 +380,7 @@ class Controller(QtCore.QObject):
             self.navigated.emit()
 
     def init(self):
+        terminal.log("initialising..")
         header = "Root"
 
         self._model.push([
@@ -357,6 +400,7 @@ class Controller(QtCore.QObject):
 
         self.pushed.emit(header)
         self.navigated.emit()
+        terminal.log("ready")
 
     def on_project_changed(self, index):
         name = model.data(index, "name")
