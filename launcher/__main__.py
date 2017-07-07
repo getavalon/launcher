@@ -3,6 +3,7 @@
 import os
 import sys
 import argparse
+import PyQt5
 
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
@@ -37,6 +38,11 @@ def cli():
 
     kwargs = parser.parse_args()
 
+    # Take advantage of the fact that the Launcher requires a Python
+    # distribution with PyQt5 readily available.
+    os.environ["PYBLISH_QML_PYQT5"] = os.path.dirname(PyQt5.__file__)
+    os.environ["PYBLISH_QML_PYTHON_EXECUTABLE"] = sys.executable
+
     # Set PYTHONPATH
     os.environ["PYTHONPATH"] = os.pathsep.join(
         os.environ.get("PYTHONPATH", "").split(os.pathsep) +
@@ -49,6 +55,7 @@ def cli():
     ] + sys.path
 
     print("Using Python @ '%s'" % sys.executable)
+    print("Using PyQt5 @ '%s'" % os.environ["PYBLISH_QML_PYQT5"])
     print("Using core @ '%s'" % os.getenv("AVALON_CORE"))
     print("Using launcher @ '%s'" % os.getenv("AVALON_LAUNCHER"))
     print("Using root @ '%s'" % kwargs.root)
