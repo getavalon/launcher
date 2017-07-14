@@ -40,8 +40,15 @@ def cli():
 
     # Take advantage of the fact that the Launcher requires a Python
     # distribution with PyQt5 readily available.
-    os.environ["PYBLISH_QML_PYQT5"] = os.path.dirname(PyQt5.__file__)
-    os.environ["PYBLISH_QML_PYTHON_EXECUTABLE"] = sys.executable
+    for key, value in (("PYBLISH_QML_PYQT5", os.path.dirname(PyQt5.__file__)),
+                       ("PYBLISH_QML_PYTHON_EXECUTABLE", sys.executable)):
+
+        # But only if it hasn't already been set by the user, in which
+        # case we assume that is the desired one.
+        if key in os.environ:
+            continue
+
+        os.environ[key] = value
 
     # Set PYTHONPATH
     os.environ["PYTHONPATH"] = os.pathsep.join(
