@@ -10,7 +10,7 @@ import contextlib
 
 from PyQt5 import QtCore
 
-from avalon import io, schema
+from avalon import api, io, schema
 from avalon.vendor import toml, six
 from . import lib, model, terminal
 
@@ -404,10 +404,10 @@ class Controller(QtCore.QObject):
 
     def on_project_changed(self, index):
         name = model.data(index, "name")
+        api.Session["AVALON_PROJECT"] = name
 
         # Establish a connection to the project database
         self.log("Connecting to %s" % name, level=INFO)
-        io.activate_project(name)
 
         frame = self.current_frame()
         project = io.find_one({"type": "project"})
@@ -437,6 +437,8 @@ class Controller(QtCore.QObject):
 
     def on_silo_changed(self, index):
         name = model.data(index, "name")
+        api.Session["AVALON_SILO"] = name
+
         frame = self.current_frame()
 
         self._model.push([
@@ -477,6 +479,8 @@ class Controller(QtCore.QObject):
 
     def on_asset_changed(self, index):
         name = model.data(index, "name")
+        api.Session["AVALON_ASSET"] = name
+
         frame = self.current_frame()
 
         frame["asset"] = model.data(index, "_id")
@@ -504,6 +508,7 @@ class Controller(QtCore.QObject):
 
     def on_task_changed(self, index):
         name = model.data(index, "name")
+        api.Session["AVALON_TASK"] = name
 
         frame = self.current_frame()
         self._model.push([
@@ -523,6 +528,8 @@ class Controller(QtCore.QObject):
     def on_app_changed(self, index):
         """Launch application on clicking it"""
         name = model.data(index, "name")
+        api.Session["AVALON_APP"] = name
+
         self.launch(name)
         self.breadcrumbs.pop()
 
