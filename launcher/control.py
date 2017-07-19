@@ -89,6 +89,10 @@ class Controller(QtCore.QObject):
         # The current frame is visualised by the Terminal in the GUI.
         self._frames = list()
 
+    @Property(str)
+    def title(self):
+        return (api.Session["AVALON_LABEL"] or "Avalon") + " Launcher"
+
     def launch(self, name):
         """Launch `app`
 

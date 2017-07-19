@@ -5,7 +5,7 @@ import QtQuick.Layouts 1.3
 
 ApplicationWindow {
     id: window
-    title: "Avalon Launcher"
+    title: controller.title
 
     visible: true
     width: 500
