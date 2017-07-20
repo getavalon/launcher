@@ -121,7 +121,7 @@ def schedule(task, delay=10):
     self._current_task = timer
 
 
-def launch(executable, args=None, environment=None):
+def launch(executable, args=None, environment=None, cwd=None):
     """Launch a new subprocess of `args`
 
     Arguments:
@@ -140,6 +140,7 @@ def launch(executable, args=None, environment=None):
     """
 
     CREATE_NO_WINDOW = 0x08000000
+    CREATE_NEW_CONSOLE = 0x00000010
     IS_WIN32 = sys.platform == "win32"
     PY2 = sys.version_info[0] == 2
 
@@ -159,18 +160,23 @@ def launch(executable, args=None, environment=None):
     kwargs = dict(
         args=[abspath] + args or list(),
         env=env,
+        cwd=cwd,
 
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
 
         # Output `str` through stdout on Python 2 and 3
         universal_newlines=True,
-
-        shell=True
     )
 
-    if IS_WIN32:
-        kwargs["creationflags"] = CREATE_NO_WINDOW
+    if environment.get("CREATE_NEW_CONSOLE"):
+        kwargs["creationflags"] = CREATE_NEW_CONSOLE
+        kwargs.pop("stdout")
+        kwargs.pop("stderr")
+    else:
+
+        if IS_WIN32:
+            kwargs["creationflags"] = CREATE_NO_WINDOW
 
     popen = subprocess.Popen(**kwargs)
 

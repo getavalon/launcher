@@ -89,7 +89,7 @@ class Controller(QtCore.QObject):
         # The current frame is visualised by the Terminal in the GUI.
         self._frames = list()
 
-    @Property(str)
+    @Property(str, constant=True)
     def title(self):
         return (api.Session["AVALON_LABEL"] or "Avalon") + " Launcher"
 
@@ -257,6 +257,7 @@ class Controller(QtCore.QObject):
                 executable=executable,
                 args=args,
                 environment=environment,
+                cwd=workdir
             )
         except ValueError:
             return terminal.log(traceback.format_exc())
@@ -287,18 +288,24 @@ class Controller(QtCore.QObject):
                     self.messaged.emit(line.rstrip())
                 self.messaged.emit("%s killed." % process["app"]["executable"])
 
-        thread = Thread()
-        thread.messaged.connect(lambda line: terminal.log(line, terminal.INFO))
+        # lib.launch might not pipe stdout,
+        # in which case we can't listen for it.
+        if popen.stdout is not None:
+            thread = Thread()
+            thread.messaged.connect(
+                lambda line: terminal.log(line, terminal.INFO)
+            )
 
-        process.update({
-            "app": app,
-            "thread": thread,
-            "popen": popen
-        })
+            process.update({
+                "app": app,
+                "thread": thread,
+                "popen": popen
+            })
 
-        self._processes.append(process)
+            self._processes.append(process)
 
-        thread.start()
+            thread.start()
+
         return process
 
     def current_frame(self):
