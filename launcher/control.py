@@ -130,13 +130,13 @@ class Controller(QtCore.QObject):
 
         frame = self.current_frame()
         frame["environment"]["root"] = self._root
+        frame["environment"]["app"] = app["application_dir"]
 
         template_private = frame["config"]["template"]["work"]
 
         try:
             workdir = template_private.format(**dict(
                 user=getpass.getuser(),
-                app=app["application_dir"],
                 **frame["environment"]
             ))
 

@@ -56,6 +56,15 @@ def cli():
         [os.getenv(dependency) for dependency in dependencies]
     )
 
+    # Fulfill schema, and expect the application
+    # to fill it in in due course.
+    for placeholder in ("AVALON_PROJECT",
+                        "AVALON_ASSET",
+                        "AVALON_SILO",
+                        "AVALON_TASK",
+                        "AVALON_APP",):
+        os.environ[placeholder] = "placeholder"
+
     # Expose dependencies to Launcher
     sys.path[:] = [
         os.getenv(dep) for dep in dependencies
