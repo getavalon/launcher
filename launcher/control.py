@@ -505,14 +505,23 @@ class Controller(QtCore.QObject):
             for key, value in asset["data"].items()
         })
 
-        self._model.push([
-            dict({
-                "icon": DEFAULTS["icon"]["task"]
-            }, **task)
-            for task in sorted(
-                frame["config"].get("tasks", []),
-                key=lambda t: t["name"])
-        ])
+        # Get tasks from the project's configuration
+        project_tasks = [task for task in frame["config"].get("tasks", [])]
+
+        # Get the tasks assigned to the asset
+        asset_tasks = asset.get("data", {}).get("tasks", None)
+        if asset_tasks is not None:
+            # If the task is in the project configuration than get the settings
+            # from the project config to also support its icons, etc.
+            task_config = {task['name']: task for task in project_tasks}
+            asset_tasks = [task_config.get(task, {"name": task})
+                           for task in asset_tasks]
+        else:
+            # if no `asset.data['tasks']` override then
+            # get the tasks from project configuration
+            asset_tasks = project_tasks
+
+        self._model.push(sorted(asset_tasks, key=lambda t: t["name"]))
 
         self._frames.append(frame)
         self.pushed.emit(name)
