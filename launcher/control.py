@@ -401,7 +401,9 @@ class Controller(QtCore.QObject):
                 "name": project["name"],
             }, **project["data"])
             for project in io.projects()
-            if project.get("active", True)
+
+            # Discard hidden projects
+            if project["data"].get("visible", True)
         ])
 
         frame = {
@@ -481,6 +483,9 @@ class Controller(QtCore.QObject):
                     item["name"]
                 )
             )
+
+            # Discard hidden items
+            if doc["data"].get("visible", True)
         ])
 
         frame["environment"]["silo"] = name
