@@ -227,11 +227,17 @@ class Controller(QtCore.QObject):
                     traceback.format_exc(),
                     terminal.ERROR)
 
-        else:
-            terminal.log("Creating default directories..", terminal.DEBUG)
-            for dirname in app.get("default_dirs", []):
-                terminal.log(" - %s" % dirname, terminal.DEBUG)
+        terminal.log("Creating default directories..", terminal.DEBUG)
+        for dirname in app.get("default_dirs", []):
+            try:
                 os.makedirs(os.path.join(workdir, dirname))
+                terminal.log(" - %s" % dirname, terminal.DEBUG)
+            except OSError as e:
+                # An already existing default directory is fine.
+                if e.errno == errno.EEXIST:
+                    pass
+                else:
+                    raise
 
         # Perform application copy
         for src, dst in app.get("copy", {}).items():
