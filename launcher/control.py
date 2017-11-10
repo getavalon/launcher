@@ -306,7 +306,7 @@ class Controller(QtCore.QObject):
     @Slot()
     def launch_explorer(self):
         """Initial draft of this method is subject to change and might
-        migrate to"""
+        migrate to another module"""
         # Todo: find a cleaner way, with .toml file for example
 
         print(">>> Explorer ...")
@@ -330,7 +330,7 @@ class Controller(QtCore.QObject):
         print(">>>", path)
         if os.path.exists(path):
             import subprocess
-            subprocess.Popen(r'explorer /select, "{}"'.format(path))
+            subprocess.Popen(r'explorer "{}"'.format(path))
 
     def current_frame(self):
         """Shorthand for the current frame"""
