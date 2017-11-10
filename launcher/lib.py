@@ -1,6 +1,7 @@
 import os
 import sys
 import subprocess
+import string
 
 from avalon.vendor import six
 from PyQt5 import QtCore
@@ -8,6 +9,11 @@ from PyQt5 import QtCore
 self = sys.modules[__name__]
 self._path = os.path.dirname(__file__)
 self._current_task = None
+
+
+class FormatDict(dict):
+    def __missing__(self, key):
+        return "{" + key + "}"
 
 
 def resource(*path):
@@ -186,3 +192,11 @@ def launch(executable, args=None, environment=None, cwd=None):
 def stream(stream):
     for line in iter(stream.readline, ""):
         yield line
+
+
+def partial_format(s, mapping):
+
+    formatter = string.Formatter()
+    mapping = FormatDict(**mapping)
+
+    return formatter.vformat(s, (), mapping)

@@ -147,17 +147,6 @@ class Controller(QtCore.QObject):
         # TODO(marcus): These shouldn't be necessary
         # once the templates are used.
         # ----------------------------------------------------------------------
-        template_rootpath = template_private.split("{silo}")[0]
-        template_assetpath = template_private.split("{asset}")[0] + "{asset}"
-        template_taskpath = template_private.split("{task}")[0] + "{task}"
-
-        silospath = template_rootpath.format(**frame["environment"])
-        assetpath = template_assetpath.format(**frame["environment"])
-        taskpath = template_taskpath.format(**frame["environment"])
-
-        frame["environment"]["silospath"] = silospath
-        frame["environment"]["assetpath"] = assetpath
-        frame["environment"]["taskpath"] = taskpath
         frame["environment"]["workdir"] = workdir
         # ----------------------------------------------------------------------
 
@@ -313,6 +302,35 @@ class Controller(QtCore.QObject):
             thread.start()
 
         return process
+
+    @Slot()
+    def launch_explorer(self):
+        """Initial draft of this method is subject to change and might
+        migrate to another module"""
+        # Todo: find a cleaner way, with .toml file for example
+
+        print("Openiing Explorer")
+
+        # Get the current environment
+        frame = self.current_frame()
+        frame["environment"]["root"] = self._root
+
+        # When we are outside of any project, do nothing
+        config = frame.get("config", None)
+        if config is None:
+            print("No project found in configuration")
+            return
+
+        template = config['template']['work']
+        path = lib.partial_format(template, frame["environment"])
+
+        # Keep only the part of the path that was formatted
+        path = os.path.normpath(path.split("{", 1)[0])
+
+        print(path)
+        if os.path.exists(path):
+            import subprocess
+            subprocess.Popen(r'explorer "{}"'.format(path))
 
     def current_frame(self):
         """Shorthand for the current frame"""

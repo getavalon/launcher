@@ -74,6 +74,21 @@ ApplicationWindow {
                     model: controller.breadcrumbs
                 }
 
+                /** Open explorer in set context based on template
+                 */
+                MyButton {
+
+                    id: launchExplorerButton
+                    implicitWidth: parent.height
+                    implicitHeight: parent.height
+                    icon: "folder-open"
+                    Layout.alignment: Qt.AlignLeft
+
+                    onClicked: controller.launch_explorer()
+
+                    opacity: 0.4
+                }
+
                 /** Toggle Terminal on/off
                  */
                 MyButton {
