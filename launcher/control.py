@@ -378,23 +378,35 @@ class Controller(QtCore.QObject):
         handler(index)
         self.navigated.emit()
 
-    @Slot()
-    def pop(self):
-        self._frames.pop()
-        self._model.pop()
+    @Slot(int)
+    def pop(self, index=None):
 
-        if not self.breadcrumbs:
-            self.popped.emit()
-            self.navigated.emit()
-            return self.init()
-
-        try:
-            self.breadcrumbs.pop()
-        except IndexError:
-            pass
+        if index is None:
+            # Regular pop behavior
+            steps = 1
+        elif index < 0:
+            # Refresh; go beyond first index
+            steps = len(self.breadcrumbs) + 1
         else:
-            self.popped.emit()
-            self.navigated.emit()
+            # Go to index
+            steps = len(self.breadcrumbs) - index - 1
+
+        for i in range(steps):
+            self._frames.pop()
+            self._model.pop()
+
+            if not self.breadcrumbs:
+                self.popped.emit()
+                self.navigated.emit()
+                return self.init()
+
+            try:
+                self.breadcrumbs.pop()
+            except IndexError:
+                pass
+            else:
+                self.popped.emit()
+                self.navigated.emit()
 
     def init(self):
         terminal.log("initialising..")
@@ -407,7 +419,9 @@ class Controller(QtCore.QObject):
                 "name": project["name"],
             }, **project["data"])
             for project in io.projects()
-            if project.get("active", True)
+
+            # Discard hidden projects
+            if project["data"].get("visible", True)
         ])
 
         frame = {
@@ -487,6 +501,9 @@ class Controller(QtCore.QObject):
                     item["name"]
                 )
             )
+
+            # Discard hidden items
+            if doc["data"].get("visible", True)
         ])
 
         frame["environment"]["silo"] = name
