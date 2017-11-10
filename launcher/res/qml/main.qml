@@ -101,7 +101,18 @@ ApplicationWindow {
         }
     }
 
-    footer: MyToolBar { }
+    footer: MyToolBar {
+        MyButton {
+
+            id: launchExplorerButton
+            implicitWidth: parent.height
+            implicitHeight: parent.height
+            icon: "folder-open"
+            Layout.alignment: Qt.AlignLeft
+
+            onClicked: controller.launch_explorer()
+        }
+    }
 
     /** Main Layout
      *  ____________________
