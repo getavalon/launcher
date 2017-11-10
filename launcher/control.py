@@ -309,7 +309,7 @@ class Controller(QtCore.QObject):
         migrate to another module"""
         # Todo: find a cleaner way, with .toml file for example
 
-        print(">>> Explorer ...")
+        print("Openiing Explorer")
 
         # Get the current environment
         frame = self.current_frame()
@@ -318,7 +318,7 @@ class Controller(QtCore.QObject):
         # When we are outside of any project, do nothing
         config = frame.get("config", None)
         if config is None:
-            print(">>> No project found in configuration")
+            print("No project found in configuration")
             return
 
         template = config['template']['work']
@@ -327,7 +327,7 @@ class Controller(QtCore.QObject):
         # Keep only the part of the path that was formatted
         path = os.path.normpath(path.split("{", 1)[0])
 
-        print(">>>", path)
+        print(path)
         if os.path.exists(path):
             import subprocess
             subprocess.Popen(r'explorer "{}"'.format(path))
