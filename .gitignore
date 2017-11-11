@@ -3,3 +3,5 @@
 *.bat
 *.pyc
 __pycache__/
+
+.idea/

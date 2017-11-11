@@ -12,15 +12,13 @@ Item {
 
         ToolButton {
             contentItem: AwesomeIcon {
-                name: "refresh"
+                name: "home"
                 size: 12
             }
 
-            visible: repeater.count == 0
-
             height: parent.height
             width: parent.height
-            onClicked: controller.pop()
+            onClicked: controller.pop(-1)
         }
 
         Repeater {
@@ -41,7 +39,7 @@ Item {
 
                 height: parent.height
                 font.pixelSize: 10
-                onClicked: controller.pop()
+                onClicked: controller.pop(index)
             }
         }
     }
