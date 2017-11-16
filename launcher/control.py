@@ -555,14 +555,19 @@ class Controller(QtCore.QObject):
             # If the task is in the project configuration than get the settings
             # from the project config to also support its icons, etc.
             task_config = {task['name']: task for task in project_tasks}
-            asset_tasks = [task_config.get(task, {"name": task})
-                           for task in asset_tasks]
+            tasks = [task_config.get(name, {"name": name})
+                     for name in asset_tasks]
         else:
             # if no `asset.data['tasks']` override then
             # get the tasks from project configuration
-            asset_tasks = project_tasks
+            tasks = project_tasks
 
-        self._model.push(sorted(asset_tasks, key=lambda t: t["name"]))
+        # If task has no icon use fallback icon
+        for task in tasks:
+            if "icon" not in task:
+                task['icon'] = DEFAULTS['icon']['task']
+
+        self._model.push(sorted(tasks, key=lambda t: t["name"]))
 
         self._frames.append(frame)
         self.pushed.emit(name)
