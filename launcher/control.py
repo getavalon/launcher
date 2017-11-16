@@ -353,7 +353,7 @@ class Controller(QtCore.QObject):
             return list()
         else:
             return [
-                {"key": key, "value": value}
+                {"key": key, "value": str(value)}
                 for key, value in frame.items()
             ]
 
