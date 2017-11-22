@@ -330,6 +330,7 @@ class Controller(QtCore.QObject):
         print(path)
         if os.path.exists(path):
             import subprocess
+            # todo(roy): Make this cross OS compatible (currently windows only)
             subprocess.Popen(r'explorer "{}"'.format(path))
 
     def current_frame(self):
