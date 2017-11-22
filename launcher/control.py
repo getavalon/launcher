@@ -309,7 +309,7 @@ class Controller(QtCore.QObject):
         migrate to another module"""
         # Todo: find a cleaner way, with .toml file for example
 
-        print("Openiing Explorer")
+        print("Opening Explorer")
 
         # Get the current environment
         frame = self.current_frame()
