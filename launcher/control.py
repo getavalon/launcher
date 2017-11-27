@@ -119,6 +119,12 @@ class Controller(QtCore.QObject):
             terminal.log("%s" % e, terminal.ERROR)
             return terminal.log(
                 " - %s" % application_definition, terminal.ERROR)
+        except Exception as e:
+            # Catch any exception otherwise the UI would crash here
+            terminal.log("Application definition failed.", terminal.ERROR)
+            terminal.log("%s" % e, terminal.ERROR)
+            return terminal.log(
+                " - %s" % application_definition, terminal.ERROR)
 
         executable = lib.which(app["executable"])
 
