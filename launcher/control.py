@@ -1,17 +1,13 @@
 import os
 import sys
-import json
 import copy
-import errno
-import shutil
-import getpass
 import traceback
 import contextlib
 
 from PyQt5 import QtCore
 
-from avalon import api, io, schema
-from avalon.vendor import toml, six
+from avalon import api, io
+from avalon.vendor import six
 from . import lib, model, terminal
 
 PY2 = sys.version_info[0] == 2
@@ -82,6 +78,19 @@ class Controller(QtCore.QObject):
                 "group"
             ])
 
+        self._actions = model.Model(
+            items=[],
+            roles=[
+                "_id",
+                "name",
+                "label",
+                "icon",
+                "color"
+            ])
+
+        # Store the registered actions for a projects
+        self._registered_actions = list()
+
         # A "frame" contains the environment at a given point
         # in the asset hierarchy. For example, browsing all the
         # way to an application yields a fully qualified frame
@@ -92,222 +101,6 @@ class Controller(QtCore.QObject):
     @Property(str, constant=True)
     def title(self):
         return (api.Session["AVALON_LABEL"] or "Avalon") + " Launcher"
-
-    def launch(self, name):
-        """Launch `app`
-
-        Arguments:
-            name (str): Name of app
-
-        """
-
-        application_definition = lib.which_app(name)
-
-        if application_definition is None:
-            return terminal.log("Application Definition for '%s' not found."
-                                % name, terminal.ERROR)
-
-        try:
-            with open(application_definition) as f:
-                app = toml.load(f)
-                terminal.log(json.dumps(app, indent=4), terminal.DEBUG)
-                schema.validate(app, "application")
-        except (schema.ValidationError,
-                schema.SchemaError,
-                toml.TomlDecodeError) as e:
-            terminal.log("Application definition was invalid.", terminal.ERROR)
-            terminal.log("%s" % e, terminal.ERROR)
-            return terminal.log(
-                " - %s" % application_definition, terminal.ERROR)
-        except Exception as e:
-            # Catch any exception otherwise the UI would crash here
-            terminal.log("Application definition failed.", terminal.ERROR)
-            terminal.log("%s" % e, terminal.ERROR)
-            return terminal.log(
-                " - %s" % application_definition, terminal.ERROR)
-
-        executable = lib.which(app["executable"])
-
-        if executable is None:
-            return terminal.log(
-                "'%s' not found on your PATH\n%s"
-                % (app["executable"], os.getenv("PATH")), terminal.ERROR
-            )
-
-        frame = self.current_frame()
-        frame["environment"]["root"] = self._root
-        frame["environment"]["app"] = app["application_dir"]
-
-        template_private = frame["config"]["template"]["work"]
-
-        try:
-            workdir = template_private.format(**dict(
-                user=getpass.getuser(),
-                **frame["environment"]
-            ))
-
-        except KeyError as e:
-            return terminal.log(
-                "Missing environment variable: %s" % e, terminal.ERROR)
-
-        # TODO(marcus): These shouldn't be necessary
-        # once the templates are used.
-        # ----------------------------------------------------------------------
-        frame["environment"]["workdir"] = workdir
-        # ----------------------------------------------------------------------
-
-        # TODO(marcus): These will eventually replace the name-based
-        # references currently stored in the environment.
-        frame["environment"]["_project"] = frame["project"]
-        frame["environment"]["_asset"] = frame["asset"]
-
-        environment = os.environ.copy()
-
-        environment = dict(environment, **{
-            "AVALON_" + key.upper(): str(value)
-            for key, value in frame["environment"].items()
-        })
-
-        try:
-            app = lib.dict_format(app, **environment)
-        except KeyError as e:
-            terminal.log(
-                "Application error: variable %s "
-                "not found in application .json" % e, terminal.ERROR)
-            terminal.log(
-                json.dumps(environment, indent=4, sort_keys=True),
-                terminal.ERROR)
-            return terminal.log(
-                "This is typically a bug in the pipeline, "
-                "ask your developer.", terminal.ERROR)
-
-        for key, value in app.get("environment", {}).items():
-            if isinstance(value, list):
-                # Treat list values as application_definition variables
-                environment[key] = os.pathsep.join(value)
-
-            elif isinstance(value, six.string_types):
-                if PY2:
-                    # Protect against unicode in the environment
-                    encoding = sys.getfilesystemencoding()
-                    environment[key] = value.encode(encoding)
-                else:
-                    environment[key] = value
-
-            else:
-                terminal.log(
-                    "'%s': Unsupported environment variable in %s"
-                    % (value, application_definition), terminal.ERROR)
-                raise TypeError("Unsupported environment variable")
-
-        try:
-            os.makedirs(workdir)
-            terminal.log(
-                "Creating working directory '%s'"
-                % workdir, terminal.INFO)
-
-        except OSError as e:
-
-            # An already existing working directory is fine.
-            if e.errno == errno.EEXIST:
-                terminal.log(
-                    "Existing working directory found.",
-                    terminal.INFO)
-
-            else:
-                terminal.log(
-                    "Could not create working directory.",
-                    terminal.ERROR)
-                return terminal.log(
-                    traceback.format_exc(),
-                    terminal.ERROR)
-
-        terminal.log("Creating default directories..", terminal.DEBUG)
-        for dirname in app.get("default_dirs", []):
-            try:
-                os.makedirs(os.path.join(workdir, dirname))
-                terminal.log(" - %s" % dirname, terminal.DEBUG)
-            except OSError as e:
-                # An already existing default directory is fine.
-                if e.errno == errno.EEXIST:
-                    pass
-                else:
-                    raise
-
-        # Perform application copy
-        for src, dst in app.get("copy", {}).items():
-            dst = os.path.join(workdir, dst)
-
-            try:
-                terminal.log("Copying %s -> %s" % (src, dst))
-                shutil.copy(src, dst)
-            except OSError as e:
-                terminal.log(
-                    "Could not copy application file: %s" % e, terminal.ERROR)
-                terminal.log(
-                    " - %s -> %s" % (src, dst), terminal.ERROR)
-
-        item = next(
-            app for app in frame["config"]["apps"]
-            if app["name"] == name
-        )
-        args = item.get("args", []) + app.get("arguments", [])
-
-        try:
-            popen = lib.launch(
-                executable=executable,
-                args=args,
-                environment=environment,
-                cwd=workdir
-            )
-        except ValueError:
-            return terminal.log(traceback.format_exc())
-
-        except OSError:
-            return terminal.log(traceback.format_exc())
-
-        except Exception as e:
-            terminal.log("Something unexpected happened..")
-            return terminal.log(traceback.format_exc())
-
-        else:
-            terminal.log(
-                json.dumps(environment, indent=4, sort_keys=True),
-                terminal.DEBUG)
-            terminal.log("Launching {executable} {args}".format(
-                executable=executable,
-                args=" ".join(args))
-            )
-
-        process = {}
-
-        class Thread(QtCore.QThread):
-            messaged = Signal(str)
-
-            def run(self):
-                for line in lib.stream(process["popen"].stdout):
-                    self.messaged.emit(line.rstrip())
-                self.messaged.emit("%s killed." % process["app"]["executable"])
-
-        # lib.launch might not pipe stdout,
-        # in which case we can't listen for it.
-        if popen.stdout is not None:
-            thread = Thread()
-            thread.messaged.connect(
-                lambda line: terminal.log(line, terminal.INFO)
-            )
-
-            process.update({
-                "app": app,
-                "thread": thread,
-                "popen": popen
-            })
-
-            self._processes.append(process)
-
-            thread.start()
-
-        return process
 
     @Slot()
     def launch_explorer(self):
@@ -365,6 +158,10 @@ class Controller(QtCore.QObject):
             ]
 
     @Property(model.Model, notify=navigated)
+    def actions(self):
+        return self._actions
+
+    @Property(model.Model, notify=navigated)
     def model(self):
         return self._model
 
@@ -396,11 +193,36 @@ class Controller(QtCore.QObject):
             1: self.on_project_changed,
             2: self.on_silo_changed,
             3: self.on_asset_changed,
-            4: self.on_task_changed,
-            5: self.on_app_changed,
+            4: self.on_task_changed
         }[level]
 
         handler(index)
+
+        # Push the compatible applications
+        actions = []
+        for Action in self._registered_actions:
+            frame = self.current_frame()
+
+            # Build a session from current frame
+            session = {"AVALON_{}".format(key.upper()): value for
+                        key, value in frame.get("environment", {}).items()}
+            session["AVALON_PROJECTS"] = api.registered_root()
+            if not Action().is_compatible(session):
+                continue
+
+            actions.append({
+                "name": str(Action.name),
+                "icon": str(Action.icon or "cube"),
+                "label": str(Action.label or Action.name),
+                "color": getattr(Action, "color", None),
+                "order": Action.order
+            })
+
+        # Sort by order and name
+        actions = sorted(actions, key=lambda action: (action["order"],
+                                                      action["name"]))
+        self._actions.push(actions)
+
         self.navigated.emit()
 
     @Slot(int)
@@ -419,6 +241,7 @@ class Controller(QtCore.QObject):
         for i in range(steps):
             self._frames.pop()
             self._model.pop()
+            self._actions.pop()
 
             if not self.breadcrumbs:
                 self.popped.emit()
@@ -449,6 +272,9 @@ class Controller(QtCore.QObject):
             if project["data"].get("visible", True)
         ])
 
+        # No actions outside of projects
+        self._actions.push([])
+
         frame = {
             "environment": {},
         }
@@ -471,6 +297,12 @@ class Controller(QtCore.QObject):
         assert project is not None, "This is a bug"
 
         frame["config"] = project["config"]
+
+        # Get available project actions and the application actions
+        actions = api.discover(api.Action)
+        apps = lib.get_apps(project)
+        actions.extend(apps)
+        self._registered_actions[:] = actions
 
         silos = io.distinct("silo")
         self._model.push([
@@ -584,27 +416,56 @@ class Controller(QtCore.QObject):
         api.Session["AVALON_TASK"] = name
 
         frame = self.current_frame()
-        self._model.push([
-            dict({
-                "icon": DEFAULTS["icon"]["app"]
-            }, **app)
-            for app in sorted(
-                frame["config"].get("apps", []),
-                key=lambda a: a["name"])
-        ])
+        self._model.push([])
 
         frame["environment"]["task"] = name
 
         self._frames.append(frame)
         self.pushed.emit(name)
 
-    def on_app_changed(self, index):
-        """Launch application on clicking it"""
-        name = model.data(index, "name")
-        api.Session["AVALON_APP"] = name
+    @Slot(QtCore.QModelIndex)
+    def trigger_action(self, index):
 
-        self.launch(name)
-        self.breadcrumbs.pop()
+        name = model.data(index, "name")
+
+        # Get the action
+        Action = next(a for a in self._registered_actions if a.name == name)
+        action = Action()
+
+        # Run the action within current session
+        self.log("Running action: %s" % name, level=INFO)
+        popen = action.process(api.Session.copy())
+
+        # Action might return popen that pipes stdout
+        # in which case we listen for it.
+        process = {}
+        if popen and hasattr(popen, "stdout") and popen.stdout is not None:
+
+            class Thread(QtCore.QThread):
+                messaged = Signal(str)
+
+                def run(self):
+                    for line in lib.stream(process["popen"].stdout):
+                        self.messaged.emit(line.rstrip())
+                    self.messaged.emit("%s killed." % process["name"])
+
+            thread = Thread()
+            thread.messaged.connect(
+                lambda line: terminal.log(line, terminal.INFO)
+            )
+
+            process.update({
+                "name": name,
+                "action": action,
+                "thread": thread,
+                "popen": popen
+            })
+
+            self._processes.append(process)
+
+            thread.start()
+
+        return process
 
     def log(self, message, level=DEBUG):
         print(message)
