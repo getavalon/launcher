@@ -116,8 +116,6 @@ ApplicationWindow {
         }
     }
 
-    footer: MyToolBar { }
-
     /** Main Layout
      *  ____________________
      * |          |         |
@@ -135,9 +133,10 @@ ApplicationWindow {
         color: "#333"
         clip: true
 
+        height: browserView.count ? parent.height - 130 : 0
+
         anchors {
             top: parent.top
-            bottom: terminalContainer.top
             right: attributeEditorContainer.left
             left: parent.left
             margins: 5
@@ -150,6 +149,58 @@ ApplicationWindow {
             anchors.margins: 2
             anchors.topMargin: 5
             anchors.leftMargin: 5
+        }
+
+        Behavior on height { SmoothedAnimation {
+            velocity: 2250;
+            easing.type: Easing.OutCubic;
+        } }
+    }
+
+    Rectangle {
+        id: actionContainer
+        border.color: "#222"
+        color: "#333"
+        clip: true
+
+        anchors {
+            bottom: terminalContainer.top
+            left: parent.left
+            right: attributeEditorContainer.left
+            top: browserContainer.bottom
+            margins: 5
+        }
+
+        Label {
+            id: actionsLabel
+            text: "Actions"
+            color: "#eee"
+            font.pixelSize: 12
+            anchors {
+                left: parent.left
+                top: parent.top
+                margins: 8
+            }
+        }
+
+        Flickable {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: actionsLabel.bottom
+            anchors.bottom: parent.bottom
+            anchors.margins: 10
+
+            ScrollBar.vertical: ScrollBar { }
+
+            contentHeight: actionView.height
+            contentWidth: width
+            clip: true
+
+            ActionListing {
+                width: parent.width
+                id: actionView
+                model: controller.actions
+            }
         }
     }
 
