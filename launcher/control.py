@@ -266,7 +266,7 @@ class Controller(QtCore.QObject):
                 "icon": DEFAULTS["icon"]["project"],
                 "name": project["name"],
             }, **project["data"])
-            for project in io.projects()
+            for project in sorted(io.projects(), key=lambda x: x['name'])
 
             # Discard hidden projects
             if project["data"].get("visible", True)
@@ -310,7 +310,7 @@ class Controller(QtCore.QObject):
                 "name": silo,
                 "icon": DEFAULTS["icon"]["silo"],
             })
-            for silo in silos
+            for silo in sorted(silos)
         ])
 
         frame["project"] = project["_id"]
