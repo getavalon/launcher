@@ -6,13 +6,19 @@ import QtQuick.Layouts 1.3
 ApplicationWindow {
     id: window
     title: controller.title
-
     visible: true
     width: 500
     height: 500
     minimumHeight: 300
     minimumWidth: 300
     color: "#444"
+
+    /** Hide instead of close so showing it again keeps position, etc.
+     */
+    onClosing: {
+        close.accepted = false
+        hide()
+    }
 
     header: ColumnLayout {
         Rectangle {
