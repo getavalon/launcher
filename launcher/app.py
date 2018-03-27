@@ -10,7 +10,7 @@ import avalon.vendor.qtawesome as qta
 from PyQt5 import QtCore, QtGui, QtQml, QtWidgets, QtQuick
 
 # Local libraries
-from . import control, terminal, lib
+from . import control, terminal, lib, actions
 
 QML_IMPORT_DIR = lib.resource("qml")
 APP_PATH = lib.resource("qml", "main.qml")
@@ -32,6 +32,10 @@ class Application(QtWidgets.QApplication):
             io.install()
         except IOError:
             raise  # Server refused to connect
+
+        # Install actions
+        actions.register_default_actions()
+        actions.register_config_actions()
 
         terminal.init()
 
