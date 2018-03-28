@@ -199,28 +199,7 @@ class Controller(QtCore.QObject):
         handler(index)
 
         # Push the compatible applications
-        actions = []
-        for Action in self._registered_actions:
-            frame = self.current_frame()
-
-            # Build a session from current frame
-            session = {"AVALON_{}".format(key.upper()): value for
-                        key, value in frame.get("environment", {}).items()}
-            session["AVALON_PROJECTS"] = api.registered_root()
-            if not Action().is_compatible(session):
-                continue
-
-            actions.append({
-                "name": str(Action.name),
-                "icon": str(Action.icon or "cube"),
-                "label": str(Action.label or Action.name),
-                "color": getattr(Action, "color", None),
-                "order": Action.order
-            })
-
-        # Sort by order and name
-        actions = sorted(actions, key=lambda action: (action["order"],
-                                                      action["name"]))
+        actions = self.collect_compatible_actions(self._registered_actions)
         self._actions.push(actions)
 
         self.navigated.emit()
@@ -267,18 +246,15 @@ class Controller(QtCore.QObject):
                 "name": project["name"],
             }, **project["data"])
             for project in sorted(io.projects(), key=lambda x: x['name'])
-
-            # Discard hidden projects
-            if project["data"].get("visible", True)
+            if project["data"].get("visible", True)  # Discard hidden projects
         ])
 
-        # No actions outside of projects
-        self._actions.push([])
-
-        frame = {
-            "environment": {},
-        }
+        frame = {"environment": {}}
         self._frames[:] = [frame]
+
+        # Validate actions based on compatibility
+        actions = self.collect_compatible_actions(api.discover(api.Action))
+        self._actions.push(actions)
 
         self.pushed.emit(header)
         self.navigated.emit()
@@ -301,8 +277,7 @@ class Controller(QtCore.QObject):
         # Get available project actions and the application actions
         actions = api.discover(api.Action)
         apps = lib.get_apps(project)
-        actions.extend(apps)
-        self._registered_actions[:] = actions
+        self._registered_actions[:] = actions + apps
 
         silos = io.distinct("silo")
         self._model.push([
@@ -469,6 +444,44 @@ class Controller(QtCore.QObject):
 
     def log(self, message, level=DEBUG):
         print(message)
+
+    def collect_compatible_actions(self, actions):
+        """Collect all actions which are compatible with the environment
+
+        Each compatible action will be translated to a dictionary to ensure
+        the action can be visualized in the launcher.
+
+        Args:
+            actions (list): list of classes
+
+        Returns:
+            list: collection of dictionaries sorted on order int he
+        """
+
+        compatible = []
+        for Action in actions:
+            frame = self.current_frame()
+
+            # Build a session from current frame
+            session = {"AVALON_{}".format(key.upper()): value for
+                       key, value in frame.get("environment", {}).items()}
+            session["AVALON_PROJECTS"] = api.registered_root()
+            if not Action().is_compatible(session):
+                continue
+
+            compatible.append({
+                "name": str(Action.name),
+                "icon": str(Action.icon or "cube"),
+                "label": str(Action.label or Action.name),
+                "color": getattr(Action, "color", None),
+                "order": Action.order
+            })
+
+        # Sort by order and name
+        compatible = sorted(compatible, key=lambda action: (action["order"],
+                                                            action["name"]))
+
+        return compatible
 
 
 def dirs(root):
