@@ -34,7 +34,7 @@ class Application(QtWidgets.QApplication):
             raise  # Server refused to connect
 
         # Install actions
-        actions.register_default_actions()
+        self.register_default_actions()
         actions.register_config_actions()
 
         terminal.init()
@@ -51,6 +51,9 @@ class Application(QtWidgets.QApplication):
         engine.load(QtCore.QUrl.fromLocalFile(source))
 
         self.setQuitOnLastWindowClosed(False)
+
+    def register_default_actions(self):
+        actions.register_default_actions()
 
     def on_object_created(self, object, url):
         if object is None:
@@ -120,6 +123,10 @@ class Application(QtWidgets.QApplication):
         tray.show()
         tray.showMessage("Avalon", "Launcher tray started.",
                          self.windowIcon(), 500)
+
+    def closeEvent(self, event):
+        actions.deregister_default_actions()
+        event.accept()
 
 
 def main(root, demo=False):
