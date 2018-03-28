@@ -11,7 +11,7 @@ class ProjectManagerAction(avalon.api.Action):
     def is_compatible(self, session):
         return "AVALON_PROJECT" in session
 
-    def process(self, session):
+    def process(self, session, **kwargs):
         return lib.launch(executable="python",
                           args=["-u", "-m", "avalon.tools.projectmanager",
                                 session['AVALON_PROJECT']])
@@ -26,7 +26,7 @@ class LoaderAction(avalon.api.Action):
     def is_compatible(self, session):
         return "AVALON_PROJECT" in session
 
-    def process(self, session):
+    def process(self, session, **kwargs):
         return lib.launch(executable="python",
                           args=["-u", "-m", "avalon.tools.cbloader",
                                 session['AVALON_PROJECT']])
