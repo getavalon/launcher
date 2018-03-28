@@ -1,5 +1,8 @@
+import os
+import importlib
+
 import avalon.api
-from avalon import pipeline, lib
+from avalon import lib
 
 
 class ProjectManagerAction(avalon.api.Action):
@@ -38,10 +41,17 @@ def register_default_actions():
     avalon.api.register_plugin(avalon.api.Action, LoaderAction)
 
 
+def deregister_default_actions():
+    """Remove all actions from default_action from the registry"""
+    avalon.api.deregister_plugin(avalon.api.Action, ProjectManagerAction)
+    avalon.api.deregister_plugin(avalon.api.Action, LoaderAction)
+
+
 def register_config_actions():
     """Register actions from the configuration for Launcher"""
 
-    config = pipeline.find_config()
+    module_name = os.environ["AVALON_CONFIG"]
+    config = importlib.import_module(module_name)
     if not hasattr(config, "register_launcher_actions"):
         print("Current configuration `%s` has no 'register_launcher_actions'"
               % config.__name__)
