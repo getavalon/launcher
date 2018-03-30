@@ -33,6 +33,10 @@ class Application(QtWidgets.QApplication):
         except IOError:
             raise  # Server refused to connect
 
+        # Install actions
+        from . import install
+        install()
+
         terminal.init()
 
         controller = control.Controller(root, self)

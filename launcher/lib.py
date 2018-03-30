@@ -47,7 +47,14 @@ def stream(stream):
 
 
 def get_apps(project):
-    """Define dynamic Application classes for project using `.toml` files"""
+    """Define dynamic Application classes for project using `.toml` files
+
+    Args:
+        project (dict): project document from the database
+
+    Returns:
+        list: list of dictionaries
+    """
 
     import avalon.lib
     import avalon.api as api
