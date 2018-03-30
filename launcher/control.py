@@ -252,8 +252,12 @@ class Controller(QtCore.QObject):
         frame = {"environment": {}}
         self._frames[:] = [frame]
 
+        # Discover all registered actions
+        discovered_actions = api.discover(api.Action)
+        self._registered_actions[:] = discovered_actions
+
         # Validate actions based on compatibility
-        actions = self.collect_compatible_actions(api.discover(api.Action))
+        actions = self.collect_compatible_actions(discovered_actions)
         self._actions.push(actions)
 
         self.pushed.emit(header)
@@ -404,13 +408,14 @@ class Controller(QtCore.QObject):
         name = model.data(index, "name")
 
         # Get the action
-        Action = next(a for a in self._registered_actions if a.name == name)
+        Action = next((a for a in self._registered_actions if a.name == name),
+                      None)
+        assert Action, "No action found"
         action = Action()
 
         # Run the action within current session
         self.log("Running action: %s" % name, level=INFO)
         popen = action.process(api.Session.copy())
-
         # Action might return popen that pipes stdout
         # in which case we listen for it.
         process = {}
