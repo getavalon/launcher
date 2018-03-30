@@ -124,10 +124,6 @@ class Application(QtWidgets.QApplication):
         tray.showMessage("Avalon", "Launcher tray started.",
                          self.windowIcon(), 500)
 
-    def closeEvent(self, event):
-        actions.deregister_default_actions()
-        event.accept()
-
 
 def main(root, demo=False):
     """Start the Qt-runtime and show the window"""
