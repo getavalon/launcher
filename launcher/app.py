@@ -10,7 +10,7 @@ import avalon.vendor.qtawesome as qta
 from PyQt5 import QtCore, QtGui, QtQml, QtWidgets, QtQuick
 
 # Local libraries
-from . import control, terminal, lib, actions
+from . import control, terminal, lib
 
 QML_IMPORT_DIR = lib.resource("qml")
 APP_PATH = lib.resource("qml", "main.qml")
