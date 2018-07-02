@@ -118,8 +118,7 @@ class Application(QtWidgets.QApplication):
         self._tray = tray
 
         tray.show()
-        tray.showMessage("Avalon", "Launcher tray started.",
-                         self.windowIcon(), 500)
+        tray.showMessage("Avalon", "Launcher tray started.", 500)
 
 
 def main(root, demo=False):
