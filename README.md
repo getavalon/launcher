@@ -2,4 +2,4 @@
 
 The Launcher provides an interface towards the file-system and environment.
 
-![untitled project](https://cloud.githubusercontent.com/assets/2152766/25536399/9e695010-2c32-11e7-8751-f249f62bd7e0.gif)
+![Avalon Launcher](https://user-images.githubusercontent.com/1860085/42269207-d595694e-7f7d-11e8-922d-c0ab7543c148.gif)
