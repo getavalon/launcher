@@ -13,7 +13,7 @@ Item {
         ToolButton {
             contentItem: AwesomeIcon {
                 name: "home"
-                size: 12
+                size: 18
             }
 
             height: parent.height
