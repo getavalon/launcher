@@ -6,7 +6,7 @@ import sys
 
 # Dependencies
 from avalon import io
-import avalon.vendor.qtawesome as qta
+# import avalon.vendor.qtawesome as qta
 from PyQt5 import QtCore, QtGui, QtQml, QtWidgets, QtQuick
 
 # Local libraries
@@ -71,15 +71,16 @@ class Application(QtWidgets.QApplication):
 
         # Build the right-mouse context menu for the tray icon
         menu = QtWidgets.QMenu()
-        icon_color = "#509eff"   # launcher icon color
+        # icon_color = "#509eff"   # launcher icon color
 
         def window_show():
             self.window.show()
             self.window.raise_()
             self.window.requestActivate()
 
-        icon = qta.icon("fa.eye", color=icon_color)
-        show = QtWidgets.QAction(icon, "Show", self)
+        # Disabled icon due to mismatching font versions
+        # icon = qta.icon("fa.eye", color=icon_color)
+        show = QtWidgets.QAction("Show", self)
         show.triggered.connect(window_show)
         menu.addAction(show)
 
@@ -92,8 +93,9 @@ class Application(QtWidgets.QApplication):
 
             self.quit()
 
-        icon = qta.icon("fa.close", color=icon_color)
-        quit = QtWidgets.QAction(icon, "Quit", self)
+        # Disabled icon due to mismatching font versions
+        # icon = qta.icon("fa.close", color=icon_color)
+        quit = QtWidgets.QAction("Quit", self)
         quit.triggered.connect(on_quit)
         menu.addAction(quit)
         tray.setContextMenu(menu)
