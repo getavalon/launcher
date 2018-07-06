@@ -6,7 +6,6 @@ import sys
 
 # Dependencies
 from avalon import io
-import avalon.vendor.qtawesome as qta
 from PyQt5 import QtCore, QtGui, QtQml, QtWidgets, QtQuick
 
 # Local libraries
@@ -15,6 +14,9 @@ from . import control, terminal, lib
 QML_IMPORT_DIR = lib.resource("qml")
 APP_PATH = lib.resource("qml", "main.qml")
 ICON_PATH = lib.resource("icon", "main.png")
+
+# TODO: Re-implement icons of tray menu after resolving #323
+# Issue 323: https://github.com/getavalon/core/issues/323
 
 
 class Application(QtWidgets.QApplication):
@@ -75,15 +77,13 @@ class Application(QtWidgets.QApplication):
 
         # Build the right-mouse context menu for the tray icon
         menu = QtWidgets.QMenu()
-        icon_color = "#509eff"   # launcher icon color
 
         def window_show():
             self.window.show()
             self.window.raise_()
             self.window.requestActivate()
 
-        icon = qta.icon("fa.eye", color=icon_color)
-        show = QtWidgets.QAction(icon, "Show", self)
+        show = QtWidgets.QAction("Show", self)
         show.triggered.connect(window_show)
         menu.addAction(show)
 
@@ -96,8 +96,7 @@ class Application(QtWidgets.QApplication):
 
             self.quit()
 
-        icon = qta.icon("fa.close", color=icon_color)
-        quit = QtWidgets.QAction(icon, "Quit", self)
+        quit = QtWidgets.QAction("Quit", self)
         quit.triggered.connect(on_quit)
         menu.addAction(quit)
         tray.setContextMenu(menu)
