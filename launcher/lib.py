@@ -72,16 +72,20 @@ def get_apps(project):
         color = app_definition.get("color", app.get("color", None))
         order = app_definition.get("order", app.get("order", 0))
 
-        action = type("app_%s" % app["name"],
-                      (api.Application,),
-                      {
-                          "name": app['name'],
-                          "label": app.get("label", app['name']),
-                          "icon": icon,
-                          "color": color,
-                          "order": order,
-                          "config": app_definition.copy()
-                      })
+        action = type(
+            "app_%s" % app["name"],
+            (api.Application,),
+            {
+                "name": app['name'],
+                "label": app.get(
+                    "label", app_definition.get("label", app["name"])
+                ),
+                "icon": icon,
+                "color": color,
+                "order": order,
+                "config": app_definition.copy()
+            }
+        )
 
         apps.append(action)
 
