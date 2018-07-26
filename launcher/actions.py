@@ -1,11 +1,10 @@
 import os
 import importlib
 
-import avalon.api
-from avalon import lib
+from avalon import api, lib
 
 
-class ProjectManagerAction(avalon.api.Action):
+class ProjectManagerAction(api.Action):
     name = "projectmanager"
     label = "Project Manager"
     icon = "gear"
@@ -20,7 +19,7 @@ class ProjectManagerAction(avalon.api.Action):
                                 session['AVALON_PROJECT']])
 
 
-class LoaderAction(avalon.api.Action):
+class LoaderAction(api.Action):
     name = "loader"
     label = "Loader"
     icon = "cloud-download"
@@ -37,8 +36,8 @@ class LoaderAction(avalon.api.Action):
 
 def register_default_actions():
     """Register default actions for Launcher"""
-    avalon.api.register_plugin(avalon.api.Action, ProjectManagerAction)
-    avalon.api.register_plugin(avalon.api.Action, LoaderAction)
+    api.register_plugin(api.Action, ProjectManagerAction)
+    api.register_plugin(api.Action, LoaderAction)
 
 
 def register_config_actions():
@@ -52,3 +51,14 @@ def register_config_actions():
         return
 
     config.register_launcher_actions()
+
+
+def register_environment_actions():
+    """Register actions from AVALON_ACTIONS for Launcher."""
+
+    paths = os.environ.get("AVALON_ACTIONS")
+    if not paths:
+        return
+
+    for path in paths.split(os.pathsep):
+        api.register_plugin_path(api.Action, path)

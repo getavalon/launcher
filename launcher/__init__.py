@@ -11,11 +11,13 @@ def install():
     if self._is_installed:
         return
 
-    from .actions import register_config_actions, register_default_actions
+    from . import actions
 
     print("Registering default actions..")
-    register_default_actions()
+    actions.register_default_actions()
     print("Registering config actions..")
-    register_config_actions()
+    actions.register_config_actions()
+    print("Registering environment actions..")
+    actions.register_environment_actions()
 
     self._is_installed = True
