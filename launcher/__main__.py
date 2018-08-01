@@ -3,24 +3,20 @@
 import os
 import sys
 import argparse
-import PyQt5
 
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 
 
 def cli():
-    # External Dependencies
+    # Check environment dependencies
     missing = list()
-    dependencies = (
-        "PYBLISH_BASE",
-        "PYBLISH_QML",
+    environment_dependencies = (
         "AVALON_CONFIG",
-        "AVALON_PROJECTS",
-        "AVALON_CORE",
+        "AVALON_PROJECTS"
     )
 
-    for dependency in dependencies:
+    for dependency in environment_dependencies:
         if dependency not in os.environ:
             missing.append(dependency)
 
@@ -32,29 +28,34 @@ def cli():
 
         return EXIT_FAILURE
 
+    # Check modules dependencies
+    missing = []
+    dependencies = {
+        "PyQt5": None, "avalon": None
+    }
+    for dependency in dependencies:
+        try:
+            lib = __import__(dependency)
+        except ImportError:
+            missing.append(dependency)
+        finally:
+            dependencies[dependency] = lib
+
+    if missing:
+        sys.stderr.write(
+            "Missing modules:\n{0}\nPlease check your PYTHONPATH:\n{1}".format(
+                "\n".join("- %s" % var for var in missing),
+                os.environ["PYTHONPATH"]
+            )
+        )
+
+        return EXIT_FAILURE
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--demo", action="store_true")
     parser.add_argument("--root", default=os.environ["AVALON_PROJECTS"])
 
     kwargs = parser.parse_args()
-
-    # Take advantage of the fact that the Launcher requires a Python
-    # distribution with PyQt5 readily available.
-    for key, value in (("PYBLISH_QML_PYQT5", os.path.dirname(PyQt5.__file__)),
-                       ("PYBLISH_QML_PYTHON_EXECUTABLE", sys.executable)):
-
-        # But only if it hasn't already been set by the user, in which
-        # case we assume that is the desired one.
-        if key in os.environ:
-            continue
-
-        os.environ[key] = value
-
-    # Set PYTHONPATH
-    os.environ["PYTHONPATH"] = os.pathsep.join(
-        os.environ.get("PYTHONPATH", "").split(os.pathsep) +
-        [os.getenv(dependency) for dependency in dependencies]
-    )
 
     # Fulfill schema, and expect the application
     # to fill it in in due course.
@@ -65,18 +66,15 @@ def cli():
                         "AVALON_APP",):
         os.environ[placeholder] = "placeholder"
 
-    # Expose dependencies to Launcher
-    sys.path[:] = [
-        os.getenv(dep) for dep in dependencies
-    ] + sys.path
-
     print("Using Python @ '%s'" % sys.executable)
-    print("Using PyQt5 @ '%s'" % os.environ["PYBLISH_QML_PYQT5"])
-    print("Using core @ '%s'" % os.getenv("AVALON_CORE"))
-    print("Using launcher @ '%s'" % os.getenv("AVALON_LAUNCHER"))
     print("Using root @ '%s'" % kwargs.root)
-    print("Using config: '%s'" % os.environ.get("AVALON_CONFIG",
-                                                "Set by project"))
+    print("Using config: '%s'" % os.environ["AVALON_CONFIG"])
+
+    dependencies["launcher"] = sys.modules[__name__]
+    for dependency, lib in dependencies.items():
+        print("Using {0} @ '{1}'".format(
+            dependency, os.path.dirname(lib.__file__))
+        )
 
     from . import app
     return app.main(**kwargs.__dict__)
