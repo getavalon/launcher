@@ -3,6 +3,7 @@
 import os
 import sys
 import argparse
+import importlib
 
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
@@ -10,15 +11,13 @@ EXIT_FAILURE = 1
 
 def cli():
     # Check environment dependencies
-    missing = list()
-    environment_dependencies = (
-        "AVALON_CONFIG",
-        "AVALON_PROJECTS"
-    )
-
-    for dependency in environment_dependencies:
-        if dependency not in os.environ:
-            missing.append(dependency)
+    missing = [
+        dep not in os.environ
+        for dep in (
+            "AVALON_CONFIG",
+            "AVALON_PROJECTS"
+        )
+    ]
 
     if missing:
         sys.stderr.write(
@@ -29,17 +28,17 @@ def cli():
         return EXIT_FAILURE
 
     # Check modules dependencies
-    missing = []
+    missing = list()
     dependencies = {
-        "PyQt5": None, "avalon": None
+        "PyQt5": None,
+        "avalon": None
     }
+
     for dependency in dependencies:
         try:
-            lib = __import__(dependency)
+            dependencies[dependency] = importlib.import_module(dependency)
         except ImportError:
             missing.append(dependency)
-        finally:
-            dependencies[dependency] = lib
 
     if missing:
         sys.stderr.write(
