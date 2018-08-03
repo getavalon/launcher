@@ -11,14 +11,10 @@ EXIT_FAILURE = 1
 
 def cli():
     # Check environment dependencies
-    missing = [
-        dep not in os.environ
-        for dep in (
-            "AVALON_CONFIG",
-            "AVALON_PROJECTS"
-        )
-    ]
-
+    missing = []
+    for dependency in ["AVALON_CONFIG", "AVALON_PROJECTS"]:
+        if dependency not in os.environ:
+            missing.append(dependency)
     if missing:
         sys.stderr.write(
             "Incomplete environment, missing variables:\n%s"
