@@ -71,6 +71,12 @@ def cli():
             dependency, os.path.dirname(lib.__file__))
         )
 
+    # For maintaning backwards compatibility on toml applications where
+    # AVALON_CORE is used, we set the environment from the modules imported.
+    os.environ["AVALON_CORE"] = os.path.abspath(
+        os.path.join(dependencies["avalon"].__file__, "..", "..")
+    )
+
     from . import app
     return app.main(**kwargs.__dict__)
 
