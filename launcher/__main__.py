@@ -23,23 +23,44 @@ def cli():
 
         return EXIT_FAILURE
 
+    # Add deprecated environment variable dependencies
+    variables = [
+        "PYBLISH_BASE",
+        "PYBLISH_QML",
+        "AVALON_CORE",
+    ]
+
+    os.environ["PYTHONPATH"] = os.pathsep.join(
+        os.environ.get("PYTHONPATH", "").split(os.pathsep) +
+        [os.getenv(variable, "") for variable in variables]
+    )
+
+    sys.path.extend(os.environ["PYTHONPATH"].split(os.pathsep))
+
     # Check modules dependencies
     missing = list()
     dependencies = {
         "PyQt5": None,
-        "avalon": None
+        "avalon": None,
+        os.environ["AVALON_CONFIG"]: None
     }
 
     for dependency in dependencies:
         try:
             dependencies[dependency] = importlib.import_module(dependency)
-        except ImportError:
-            missing.append(dependency)
+        except ImportError as e:
+            missing.append([dependency, e])
 
     if missing:
+        missing_formatted = []
+        for dep, error in missing:
+            missing_formatted.append(
+                "- \"{0}\"\n  Error: {1}".format(dep, error)
+            )
+
         sys.stderr.write(
             "Missing modules:\n{0}\nPlease check your PYTHONPATH:\n{1}".format(
-                "\n".join("- %s" % var for var in missing),
+                "\n".join(missing_formatted),
                 os.environ["PYTHONPATH"]
             )
         )
