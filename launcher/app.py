@@ -6,7 +6,7 @@ import sys
 
 # Dependencies
 from avalon import io
-from PyQt5 import QtCore, QtGui, QtQml, QtWidgets, QtQuick
+from PyQt5 import QtCore, QtGui, QtQml, QtWidgets
 
 # Local libraries
 from . import control, terminal, lib
