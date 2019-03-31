@@ -5,6 +5,8 @@ import sys
 import argparse
 import importlib
 
+from . import _SESSION_STEPS, _PLACEHOLDER
+
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 
@@ -75,12 +77,8 @@ def cli():
 
     # Fulfill schema, and expect the application
     # to fill it in in due course.
-    for placeholder in ("AVALON_PROJECT",
-                        "AVALON_ASSET",
-                        "AVALON_SILO",
-                        "AVALON_TASK",
-                        "AVALON_APP",):
-        os.environ[placeholder] = "placeholder"
+    for step in _SESSION_STEPS:
+        os.environ[step] = _PLACEHOLDER
 
     print("Using Python @ '%s'" % sys.executable)
     print("Using root @ '%s'" % kwargs.root)

@@ -9,6 +9,7 @@ from PyQt5 import QtCore
 from avalon import api, io
 from avalon.vendor import six
 from . import lib, model, terminal
+from . import _SESSION_STEPS, _PLACEHOLDER
 
 PY2 = sys.version_info[0] == 2
 
@@ -234,6 +235,10 @@ class Controller(QtCore.QObject):
             else:
                 self.popped.emit()
                 self.navigated.emit()
+
+            # Revert to placeholder
+            step = _SESSION_STEPS[len(self.breadcrumbs)]
+            api.Session[step] = _PLACEHOLDER
 
     def init(self):
         terminal.log("initialising..")
