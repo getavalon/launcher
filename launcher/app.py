@@ -13,8 +13,8 @@ from . import control, terminal, lib
 
 QML_IMPORT_DIR = lib.resource("qml")
 APP_PATH = lib.resource("qml", "main.qml")
-ICON_PATH = lib.resource("icon", "main.png")
-SPLASH_PATH = lib.resource("icon", "splash.png")
+ICON_PATH = lib.core_resource("icons", "png", "avalon-logo-16.png")
+SPLASH_PATH = lib.core_resource("icons", "png", "splash.png")
 
 # TODO: Re-implement icons of tray menu after resolving #323
 # Issue 323: https://github.com/getavalon/core/issues/323
