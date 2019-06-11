@@ -30,7 +30,7 @@ class LoaderAction(api.Action):
 
     def process(self, session, **kwargs):
         return lib.launch(executable="python",
-                          args=["-u", "-m", "avalon.tools.cbloader",
+                          args=["-u", "-m", "avalon.tools.loader",
                                 session['AVALON_PROJECT']])
 
 
